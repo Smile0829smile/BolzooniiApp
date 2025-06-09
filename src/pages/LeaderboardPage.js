@@ -112,11 +112,11 @@ export default function LeaderboardPage() {
   
     // Tasks
     const tasks = [
-      "Багийн зурагаа өөрийнхөө про гийн 3 зурагт хийх.",
-      "Нэгнийгээ зурах.",
-      "Хамт кино үзэх.",
-      "Нэгэндээ хийж байсан хамгийн тэнэг зүйлээ хэлэх.",
-      "Нэгнийгээ 3 үгээр илэрхийлэх.",
+      ".",
+      "Нэгэн рүүгээ filter гүй зургаа явуул. Тэгээд зурагийн аваад гоё filter эдр нэмээд нэгэндээ өг. Тэгээд үнэлэ бас грүпп дээр шэйрлэж харуул",
+      "Хамт кино ямар ч хамаагүй байдлаар үзээд. Киноны хамгийн гоё хэсэг юу байсныг яриад тэр киногоо үнэлэх. Зураг эдр дарвал грүпп дээр шэйр",
+      "Нэгэндээ тоглодог 2 online, 1 offline тоглоомоо хуваалц. Тэгээд нэгийн сонгоод нэгнийхээ рекордыг эвд эсвэл нэгэнтэйгээ хамт тогло.",
+      "Дуртай 3 дуугаа нэгэнтэйгээ хуваалцаад, Нэг дуугаа сонгоод хамт дуулаад, тэрийгээ грүпп дээр шэйр.",
     ];
   
     const randomTask = tasks[Math.floor(Math.random() * tasks.length)];
@@ -170,6 +170,12 @@ export default function LeaderboardPage() {
       assignee_id: assigneeId,
       task_text: taskText,
     });
+
+    const { data } = await supabase
+      .from('profiles')
+      .select('username')
+      .eq('id', assigneeId)
+      .single();
   
     if (error) {
       console.error('Error assigning task:', error);
@@ -178,7 +184,7 @@ export default function LeaderboardPage() {
       // Also send a public notification
       await supabase.from('notifications').insert({
         user_id: null,
-        message: `${currentUser.username} д даалгавар ирлээ. Даалгавар нь "${assigneeId}". 🧠`,
+        message: `${data.username}-д даалгавар ирлээ. Даалгавар нь "${taskText}". 🧠`,
       });
   
       alert('Даалгавар амжилттай өгөгдлөө!');
@@ -1070,29 +1076,35 @@ export default function LeaderboardPage() {
     try {
       const points = vote === 'nice' ? 8 : 1;
   
-      // Update Christma points for the current user
+      // Step 1: Fetch current christma_points
+      const { data: profile, error: fetchError } = await supabase
+        .from('profiles')
+        .select('christma_points')
+        .eq('id', currentUser.id)
+        .single();
+  
+      if (fetchError) throw fetchError;
+  
+      const newPoints = (profile.christma_points || 0) + points;
+  
+      // Step 2: Update Christma points
       const { error: updateError } = await supabase
         .from('profiles')
-        .update({
-          christma_points: supabase.raw('christma_points + ?', [points]),
-        })
+        .update({ christma_points: newPoints })
         .eq('id', currentUser.id);
   
       if (updateError) throw updateError;
-  
-      // Optionally mark task as completed or record vote in a table
-  
+
+      
       alert(`You gave a "${vote}" vote and earned ${points} Christma points!`);
   
-      // Fetch a new task if needed, or just refetch the current one
-      // e.g., await fetchDatingTask();
+      // Optionally refresh data or fetch a new task
   
     } catch (err) {
       console.error('Error handling vote:', err);
       alert('Failed to record your vote.');
     }
   }  
-  
   
 
 
@@ -1127,7 +1139,7 @@ export default function LeaderboardPage() {
           <h2 className="text-2xl font-bold text-pink-600 mb-2">💑 Хосын даалгавар! 💑</h2>
           <h3 className="text-xl text-gray-800">Та хоёрын хамтарсан даалгавар: <u>{datingTask}</u></h3>
 
-          <h3 className="mt-4 text-lg text-gray-700">Хосынхоо даалгаврыг хэр сайн биелүүлснийг сонгоно уу 🙂</h3>
+          {/* <h3 className="mt-4 text-lg text-gray-700">Хосынхоо даалгаврыг хэр сайн биелүүлснийг сонгоно уу 🙂</h3>
 
           <div className="mt-4 flex justify-center space-x-4">
             <button
@@ -1142,15 +1154,10 @@ export default function LeaderboardPage() {
             >
               👎 Nah
             </button>
-          </div>
+          </div> */}
         </div>
       )}
-
-
-
-
-
-
+      
       <h2>Ранк</h2>
 
       {loading && <p>Loading...</p>}
