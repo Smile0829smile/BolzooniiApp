@@ -60,6 +60,10 @@ export default function LeaderboardPage() {
   const [bannedUserIds, setBannedUserIds] = useState(new Set());
   const [myTask, setMyTask] = useState('');
   const [datingTask, setDatingTask] = useState(null);
+  const [activeReportId, setActiveReportId] = useState(null);
+  const [reportReasons, setReportReasons] = useState({});
+  const [askedUserIds, setAskedUserIds] = useState([]);
+
 
 
   // after fetchCurrentUser, also fetch bans:
@@ -193,22 +197,26 @@ export default function LeaderboardPage() {
     }
   };
   
-  const handleReport = async (reportedId) => {
-    const reason = prompt("Энэ хэрэглэгчийг ямар шалтгаанаас болж мэдэгдэж байгаагаа тайлбарлана уу:");
-    if (!reason) return;
+  const handleSubmitReport = async (reportedId) => {
+    const reason = reportReasons[reportedId] || '';
+    if (!reason.trim()) return;
   
-    const { data, error } = await supabase.from('reports').insert({
+    const { error } = await supabase.from('reports').insert({
       reporter_id: currentUser.id,
       reported_id: reportedId,
-      reason: reason,
+      reason: reason.trim(),
     });
   
     if (error) {
-      console.error("Error submitting report:", error);
-      alert("Failed to submit report. Please try again.");
-    } else {
-      alert("Thank you. The report has been submitted.");
+      console.error('Supabase insert error:', error);
+      alert('Failed to report');
     }
+    else {
+      alert('Reported successfully');
+      setActiveReportId(null);
+      setReportReasons(prev => ({ ...prev, [reportedId]: '' }));
+    }
+    console.log('Current user:', currentUser);
   };
   
   
@@ -642,25 +650,22 @@ export default function LeaderboardPage() {
     }
   
     try {
-      // 🚫 Ban check: has currentUser banned the requested user OR been banned by them?
-      // Check if either currentUser or requested user is banned by ANYONE
+      // 🚫 Ban check
       const { data: bannedUsers, error: bannedUsersError } = await supabase
         .from('bans')
         .select('banned_user_id')
         .in('banned_user_id', [currentUser.id, requestedId]);
-
+  
       if (bannedUsersError) throw bannedUsersError;
-
+  
       if (bannedUsers && bannedUsers.length > 0) {
-      // Determine who is banned
-      if (bannedUsers.some(b => b.banned_user_id === currentUser.id)) {
-        alert('Та бан дуулсан байгаа тул болзооны санал явуулах хориотой.');
-      } else {
-        alert('Таны болзмоор байгаа хүн бан дуулсан байгаа тул банг аас гарахын хүлээнэ үү.');
+        if (bannedUsers.some(b => b.banned_user_id === currentUser.id)) {
+          alert('Та бан дуулсан байгаа тул болзооны санал явуулах хориотой.');
+        } else {
+          alert('Таны болзмоор байгаа хүн бан дуулсан байгаа тул банг аас гарахын хүлээнэ үү.');
+        }
+        return;
       }
-      return;
-      }
-
   
       // 💌 Limit to one request per day
       const { data: todayRequestsCount, error: todayError } = await supabase
@@ -746,6 +751,9 @@ export default function LeaderboardPage() {
   
       alert(`Болзооны саналыг явуулсан! ${requestedProfile.username} нь +${pointsToAdd} Christma оноо авлаа.`);
   
+      // ✅ Hide button for this user
+      setAskedUserIds(prev => [...prev, requestedId]);
+  
       // 🔁 Refresh UI
       fetchLeaderboard();
       fetchIncomingDateRequests();
@@ -754,10 +762,7 @@ export default function LeaderboardPage() {
       console.error('Error sending date request:', err);
       alert('Болзооны саналыг илгээх үед ямар нэгэн зүйл буруу боллоо.');
     }
-  }
-  
-  
-  
+  }  
   
 
   async function handleAccept(requestId, requesterId, requesterUsername) {
@@ -1010,7 +1015,9 @@ export default function LeaderboardPage() {
 
           <div>
             <button onClick={() => onLike(user.id)}>❤️ Like</button>
-            <button onClick={() => onAskDate(user.id)}>💌 Болзоо</button>
+            {!askedUserIds.includes(user.id) && (
+              <button onClick={() => onAskDate(user.id)}>💌 Болзоо</button>
+            )}
             <button onClick={() => onViewProfile(user.id)}>👀 Profile үзэх</button>
 
             {isTop3User && !isSelf && (
@@ -1047,22 +1054,36 @@ export default function LeaderboardPage() {
                 )}
               </>
             )}
+            <button onClick={() => setActiveReportId(user.id)}>
+              🚩 Report
+            </button>
 
-          <button
-            onClick={() => handleReport(user.id)}
-            style={{
-              backgroundColor: '#f8d7da',      // light red/pink background
-              color: '#721c24',               // dark red text
-              fontSize: '0.8rem',             // smaller font
-              padding: '4px 8px',
-              border: '1px solid #f5c6cb',
-              borderRadius: '4px',
-              marginTop: '4px',
-              cursor: 'pointer',
-            }}
-          >
-            🚩 Report
-          </button>
+            {activeReportId === user.id && (
+              <div style={{ marginTop: '10px' }}>
+                <input
+                  type="text"
+                  placeholder="Report reason"
+                  value={reportReasons[user.id] || ''}
+                  onChange={(e) =>
+                    setReportReasons(prev => ({
+                      ...prev,
+                      [user.id]: e.target.value,
+                    }))
+                  }
+                  autoFocus
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    border: '1px solid #ccc',
+                    borderRadius: '4px',
+                  }}
+                />
+                <br />
+                <button onClick={() => handleSubmitReport(user.id)} style={{ marginTop: '5px' }}>
+                  Submit Report
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </li>
@@ -1108,8 +1129,6 @@ export default function LeaderboardPage() {
     }
   }  
   
-
-
   return (
     <div style={{ maxWidth: 600, margin: 'auto', padding: 20 }}>
       <button onClick={() => navigate('/profile')} style={{ marginBottom: 20 }}>
