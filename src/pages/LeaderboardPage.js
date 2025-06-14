@@ -393,17 +393,17 @@ export default function LeaderboardPage() {
       .from('dating')
       .select('id')
       .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
+      .eq('status', 'accepted') // ✅ Only accepted counts as dating
       .limit(1)
-      .single();
+      .maybeSingle();
   
     if (error && error.code !== 'PGRST116') {
       console.error('Error checking dating status:', error);
-      return false; // Assume not dating if error
+      return false;
     }
   
-    return !!data; // true if a dating row exists, false otherwise
-  }
-  
+    return !!data; // true if currently dating
+  }  
   
 
 
@@ -925,11 +925,11 @@ export default function LeaderboardPage() {
       console.log('Now:', new Date(nowUTC).toISOString());
       console.log('Hour Difference:', hoursDiff);
   
-      if (hoursDiff < 24) {
-        const remainingMs = (24 - hoursDiff) * 60 * 60 * 1000;
+      if (hoursDiff < 12) {
+        const remainingMs = (12 - hoursDiff) * 60 * 60 * 1000;
         const remainingHours = Math.floor(remainingMs / (1000 * 60 * 60));
         const remainingMinutes = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60));
-        alert(`Та багадаа 1 бүтэн өдөр болзох ёстой. ${remainingHours} цаг ${remainingMinutes} минутын дараа дахин үзнэ үү.`);
+        alert(`Та багадаа 12 цаг болзох ёстой. ${remainingHours} цаг ${remainingMinutes} минутын дараа дахин үзнэ үү.`);
         return;
       }      
   
