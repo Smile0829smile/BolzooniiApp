@@ -614,11 +614,9 @@ export default function LeaderboardPage() {
       if (userError) throw userError;
   
       // Insert like record
-      await supabase.from('likes').insert({
-        liker_id: currentUser.id,
-        liked_id: likedUserId,
-        created_at: new Date()
-      });
+      await supabase
+      .from('likes')
+      .insert({liker_id: currentUser.id, liked_id: likedUserId, created_at: new Date()});
   
       // Update liked user's Christma points +2 and like_count +1
       const updatedPoints = likedUser.christma_points + 2;
