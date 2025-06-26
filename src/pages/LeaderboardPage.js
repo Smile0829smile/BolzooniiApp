@@ -572,7 +572,7 @@ export default function LeaderboardPage() {
     if (!currentUser || currentUser.id === likedUserId) return;
   
     try {
-      // Ban check
+      // Step 1: Ban check
       const { data: bannedUsers, error: bannedUsersError } = await supabase
         .from('bans')
         .select('banned_user_id')
@@ -589,22 +589,24 @@ export default function LeaderboardPage() {
         return;
       }
   
-      // Check if you liked this user today
-      const { data: existingLikes, error: likeError } = await supabase
+      // Step 2: Check if liked today
+      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+  
+      const { data: existingLikes, error: likeCheckError } = await supabase
         .from('likes')
-        .select('id, created_at')
+        .select('id')
         .eq('liker_id', currentUser.id)
         .eq('liked_id', likedUserId)
-        .gte('created_at', new Date(new Date().setHours(0, 0, 0, 0)).toISOString()); // since today 00:00:00
+        .eq('like_day', today);
   
-      if (likeError) throw likeError;
+      if (likeCheckError) throw likeCheckError;
   
-      if (existingLikes && existingLikes.length > 0) {
+      if (existingLikes.length > 0) {
         alert('Та энэ хүн рүү аль хэдийн like явуулсан байна! Маргааш дахин оролдоно уу.');
         return;
       }
   
-      // Get liked user profile
+      // Step 3: Get liked user's profile
       const { data: likedUser, error: userError } = await supabase
         .from('profiles')
         .select('username, christma_points, like_count')
@@ -613,24 +615,40 @@ export default function LeaderboardPage() {
   
       if (userError) throw userError;
   
-      // Insert like record
-      await supabase
-      .from('likes')
-      .insert({liker_id: currentUser.id, liked_id: likedUserId, created_at: new Date()});
+      // Step 4: Insert new like
+      const now = new Date();
+      const { error: insertError } = await supabase
+        .from('likes')
+        .insert({
+          liker_id: currentUser.id,
+          liked_id: likedUserId,
+          created_at: now.toISOString(),
+          like_day: today,
+        });
   
-      // Update liked user's Christma points +2 and like_count +1
+      if (insertError) throw insertError;
+  
+      // Step 5: Update liked user's Christma points and like_count
       const updatedPoints = likedUser.christma_points + 2;
       const updatedLikeCount = likedUser.like_count + 1;
-      await supabase
+  
+      const { error: updateError } = await supabase
         .from('profiles')
-        .update({ christma_points: updatedPoints, like_count: updatedLikeCount })
+        .update({
+          christma_points: updatedPoints,
+          like_count: updatedLikeCount,
+        })
         .eq('id', likedUserId);
   
-      // Insert notification
-      await supabase.from('notifications').insert({
+      if (updateError) throw updateError;
+  
+      // Step 6: Create public notification
+      const { error: notifError } = await supabase.from('notifications').insert({
         user_id: null,
         message: `${currentUser.username} нь ${likedUser.username} рүү like явууллаа! ❤️`,
       });
+  
+      if (notifError) throw notifError;
   
       alert('Та энэ хүн рүү like явууллаа! Энэ хүн +2 Christma оноо авлаа.');
       fetchLeaderboard();
