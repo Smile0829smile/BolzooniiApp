@@ -765,7 +765,7 @@ export default function LeaderboardPage() {
       // 🔔 Notification
       await supabase.from('notifications').insert({
         user_id: null,
-        message: `${currentProfile.username} нь ${requestedProfile.username} ээс болзооны санал явууллаа! 💌`,
+        message: `${currentProfile.username} нь ${requestedProfile.username} рүү болзооны санал явууллаа! 💌`,
       });
   
       alert(`Болзооны саналыг явуулсан! ${requestedProfile.username} нь +${pointsToAdd} Christma оноо авлаа.`);
@@ -863,6 +863,12 @@ export default function LeaderboardPage() {
       if (datingError) throw datingError;
   
       console.log('✅ Couple created with id:', couple.id);
+
+      //6.5 Give points
+      // await supabase
+      //   .from('profiles')
+      //   .update({ christma_points: requesterProfile.christma_points + 5 })
+      //   .eq('id', requesterId);
   
       
       // 7. Optional notification
@@ -948,7 +954,7 @@ export default function LeaderboardPage() {
         const remainingMs = (24 - hoursDiff) * 60 * 60 * 1000;
         const remainingHours = Math.floor(remainingMs / (1000 * 60 * 60));
         const remainingMinutes = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60));
-        alert(`Та багадаа 12 цаг болзох ёстой. ${remainingHours} цаг ${remainingMinutes} минутын дараа дахин үзнэ үү.`);
+        alert(`Та багадаа 24 цаг болзох ёстой. ${remainingHours} цаг ${remainingMinutes} минутын дараа дахин үзнэ үү.`);
         return;
       }      
   
@@ -1198,6 +1204,29 @@ export default function LeaderboardPage() {
           </div> */}
         </div>
       )}
+
+      {incomingDateRequests.length > 0 && (
+          <div
+            style={{
+            marginTop: 30,
+            padding: 15,
+            border: '1px solid #ccc',
+            borderRadius: 8,
+          }}
+        >
+          <h3>📩 Чамд ирсэн болзох саналууд</h3>
+          <ul style={{ padding: 0 }}>
+            {incomingDateRequests.map((request) => (
+              <DateRequestCard
+                key={request.id}
+                request={request}
+                onAccept={handleAccept}
+                onReject={handleReject}
+              />
+            ))}
+          </ul>
+        </div>
+      )}
       
       <h2>Ранк</h2>
 
@@ -1223,31 +1252,10 @@ export default function LeaderboardPage() {
                 assignTask={assignTask}
               />
             ))}
-
-          {incomingDateRequests.length > 0 && (
-            <div
-              style={{
-                marginTop: 30,
-                padding: 15,
-                border: '1px solid #ccc',
-                borderRadius: 8,
-              }}
-            >
-              <h3>📩 Чамд ирсэн болзох саналууд</h3>
-              <ul style={{ padding: 0 }}>
-                {incomingDateRequests.map((request) => (
-                  <DateRequestCard
-                    key={request.id}
-                    request={request}
-                    onAccept={handleAccept}
-                    onReject={handleReject}
-                  />
-                ))}
-              </ul>
-            </div>
-          )}
         </>
       )}
+      <hr></hr>
+      <h3>Creator: Nazuke</h3>
     </div>
   );
 }
