@@ -799,7 +799,7 @@ export default function LeaderboardPage() {
   
       if (acceptError) throw acceptError;
   
-      // 2. Fetch the date request to get requester_id (in case requesterId is unreliable)
+      // 2. Fetch the date request to get requester_id
       const { data: dateData, error: dateError } = await supabase
         .from('date_requests')
         .select('*')
@@ -808,10 +808,10 @@ export default function LeaderboardPage() {
   
       if (dateError) throw dateError;
   
-      // 3. Fetch date_count for both users
+      // 3. Fetch date_count and christma_points for both users
       const { data: profilesData, error: fetchError } = await supabase
         .from('profiles')
-        .select('id, date_count')
+        .select('id, date_count, christma_points')
         .in('id', [currentUser.id, dateData.requester_id]);
   
       if (fetchError) throw fetchError;
@@ -822,18 +822,17 @@ export default function LeaderboardPage() {
       // Increment their date counts
       const newCurrentUserCount = (currentUserProfile?.date_count || 0) + 1;
       const newRequesterCount = (requesterProfile?.date_count || 0) + 1;
-
+  
       // Fetch the requester's username if not passed in
       const { data: requesterProfileData, error: usernameError } = await supabase
         .from('profiles')
         .select('username')
         .eq('id', dateData.requester_id)
         .single();
-
+  
       if (usernameError) throw usernameError;
-
+  
       const requesterUsername = requesterProfileData.username;
-
   
       // 4. Update currentUser date_count
       const { error: updateCurrentUserError } = await supabase
@@ -863,20 +862,21 @@ export default function LeaderboardPage() {
       if (datingError) throw datingError;
   
       console.log('✅ Couple created with id:', couple.id);
-
-      //6.5 Give points
-      // await supabase
-      //   .from('profiles')
-      //   .update({ christma_points: requesterProfile.christma_points + 5 })
-      //   .eq('id', requesterId);
   
-      
-      // 7. Optional notification
+      // 6.5 Give 5 Christma points to requester
+      const updatedRequesterPoints = (requesterProfile?.christma_points || 0) + 5;
+  
+      await supabase
+        .from('profiles')
+        .update({ christma_points: updatedRequesterPoints })
+        .eq('id', dateData.requester_id);
+  
+      // 7. Optional notification (kept as-is)
       await supabase.from('notifications').insert({
         user_id: null,
         message: `${currentUser.username} нь ${requesterUsername} ий болзооны саналыг зөвшөөрлөө! 💕`,
       });
-
+  
       // 8. Assign a random task to the new couple
       await assignRandomTaskToCouple(couple.id);
   
@@ -890,7 +890,8 @@ export default function LeaderboardPage() {
       console.error('Error accepting date request:', err);
       alert('Болзооны саналыг зөвшөөрөх үед ямар нэгэн юм буруу боллоо.');
     }
-  }  
+  }
+   
   
 
 
