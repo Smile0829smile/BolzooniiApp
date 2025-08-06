@@ -438,7 +438,7 @@ export default function LeaderboardPage() {
       setLoading(true);
       const { data } = await supabase
         .from('profiles')
-        .select('id, username, profile_pic, christma_points, gender')
+        .select('id, username, nickname, profile_pic, christma_points, gender')
         .order('christma_points', { ascending: false })
         .limit(500);
 
@@ -1023,7 +1023,7 @@ export default function LeaderboardPage() {
           {user.profile_pic && (
             <img
               src={user.profile_pic}
-              alt={`${user.username}'s avatar`}
+              alt={`${user.nickname || 'User'}'s avatar`}
               style={{
                 width: '50px',
                 height: '50px',
@@ -1031,10 +1031,10 @@ export default function LeaderboardPage() {
                 marginRight: '10px',
                 objectFit: 'cover',
               }}
-            />
+            />          
           )}
           <div style={{ flexGrow: 1 }}>
-            <strong>#{rank + 1}</strong> {user.username} | {user.christma_points} ✨
+            <strong>#{rank + 1}</strong> {user.nickname} | {user.christma_points}✨
             <br />
             Хүйс: {user.gender}
           </div>

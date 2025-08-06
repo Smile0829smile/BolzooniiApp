@@ -85,23 +85,24 @@ export default function ProfileViewPage() {
       >
         🔙 Буцах
       </button>
-
-      <h1>{profile.username}</h1>
+  
+      <h1>{profile.nickname}</h1>
       {profile.profile_pic && (
         <img
           src={profile.profile_pic}
           alt={`${profile.username}'s avatar`}
-          style={{ width: '150px', height: '150px', borderRadius: '50%' }}
+          style={{ width: '250px', height: '250px', borderRadius: '50%' }}
         />
       )}
-      <p>Nickname: {profile.nickname || profile.username}</p>
+      <p>Username: {profile.username || profile.username}</p>
       <p>Christma оноо: {profile.christma_points}</p>
       <p>Email: {profile.email || 'Not provided'}</p>
+      <p>Утас: {profile.phone_number || 'Not provided'}</p> {/* Added phone number */}
       <p>Хүйс: {profile.gender}</p>
       <p>Нас: {calculateAge(profile.birthdate)}</p>
       <p>Likes: {profile.like_count}</p>
       <p>Болзоо: {profile.date_count}</p>
-
+  
       {/* Extra Photos Section */}
       <h3 style={{ marginTop: '30px' }}>📸 Нэмэлт зураг</h3>
       {extraPhotos.length > 0 ? (
@@ -125,4 +126,4 @@ export default function ProfileViewPage() {
       )}
     </div>
   );
-}
+}  

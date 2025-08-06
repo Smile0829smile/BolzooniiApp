@@ -11,6 +11,8 @@ export default function AuthPage() {
   const [gender, setGender] = useState('');
   const [isSigningUp, setIsSigningUp] = useState(false);
   const navigate = useNavigate();
+  const [phoneNumber, setPhoneNumber] = useState('');
+
 
   // Check username uniqueness before signup
   const isUsernameUnique = async (name) => {
@@ -56,6 +58,7 @@ export default function AuthPage() {
           nickname: nickname.trim() || '',
           birthdate: birthdate || null,
           gender: gender || null,
+          phone_number: phoneNumber,
         });
 
         if (profileError) {
@@ -100,6 +103,13 @@ export default function AuthPage() {
       {isSigningUp && (
         <>
           <input
+            type="tel"
+            placeholder="Утасны дугаар"
+            value={phoneNumber}
+            onChange={(e) => setPhoneNumber(e.target.value)}
+            style={{ marginBottom: '0.5rem', width: '100%' }}
+          />
+          <input
             type="text"
             placeholder="Username (Ганц өгөөл ахиж солигдохгүй)"
             value={username}
@@ -127,8 +137,8 @@ export default function AuthPage() {
             style={{ marginBottom: '1rem', width: '100%' }}
           >
             <option value="">Хүйсээ сонгоно уу</option>
-            <option value="male">Эрэгтэй</option>
-            <option value="female">Эмэгтэй</option>
+            <option value="Эрэгтэй">Эрэгтэй</option>
+            <option value="Эмэгтэй">Эмэгтэй</option>
           </select>
         </>
       )}

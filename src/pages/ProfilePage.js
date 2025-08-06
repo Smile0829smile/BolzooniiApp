@@ -26,8 +26,7 @@ export default function ProfilePage() {
     gender: '',
     like_count: 0,
     date_count: 0,
-    is_in_relationship: false,
-    is_on_break: false,
+    phone_number: '',
   });
   const [extraPhotos, setExtraPhotos] = useState([]);
   const [birthdateInput, setBirthdateInput] = useState('');
@@ -84,8 +83,7 @@ export default function ProfilePage() {
           gender: data.gender || '',
           like_count: data.like_count || 0,
           date_count: data.date_count || 0,
-          is_in_relationship: data.is_in_relationship || false,
-          is_on_break: data.is_on_break || false,
+          phone_number: data.phone_number || '',
         });
         setPreviewUrl(data.profile_pic || '');
         setBirthdateInput(data.birthdate || '');
@@ -105,7 +103,12 @@ export default function ProfilePage() {
   }, [navigate]);
 
   const updateProfile = async () => {
-    setLoading(true);
+    if (!profile.nickname || profile.nickname.trim() === '') {
+      alert('Нэрээ заавал оруулна уу!');
+      return;
+    }
+  
+    setLoading(true);  
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -279,31 +282,25 @@ export default function ProfilePage() {
       <div>
         <strong>Username:</strong> {profile.username + " (You cannot change your username)"}
       </div>
-
+        <br></br>
+      <div>
+        <strong>Phone Number:</strong> {profile.phone_number || 'Not set'}
+      </div>
+        <br></br>
       <div>
         <strong>Хүйс:</strong> {profile.gender || 'Not set'}
       </div>
-
-      <div>
-        <strong>Төрсөн өдөр</strong>
-        {profile.birthdate ? (
-          <p>{new Date(profile.birthdate).toLocaleDateString()}</p>
-        ) : (
-          <>
-            <input type="date" value={birthdateInput} onChange={(e) => setBirthdateInput(e.target.value)} />
-            <button onClick={handleBirthdateSave}>Save</button>
-          </>
-        )}
-      </div>
-
+        <br></br>
       {profile.birthdate && (
         <div>
           <strong>Нас:</strong> {calculateAge(profile.birthdate)}
         </div>
       )}
-
+        <br></br>
       <div><strong>Christma оноо:</strong> {profile.christma_points}</div>
+        <br></br>
       <div><strong>Likes:</strong> {profile.like_count}</div>
+        <br></br>
       <div><strong>Болзоо:</strong> {profile.date_count}</div>
       <br />
 
