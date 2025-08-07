@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
+import React from 'react';
+
 
 function calculateAge(birthdate) {
   if (!birthdate) return null;
@@ -32,6 +34,8 @@ export default function ProfilePage() {
   const [birthdateInput, setBirthdateInput] = useState('');
   const [previewUrl, setPreviewUrl] = useState('');
   const navigate = useNavigate();
+  const [selectedImage, setSelectedImage] = useState(null);
+
 
   useEffect(() => {
     const checkBanAndFetchProfile = async () => {
@@ -151,24 +155,6 @@ export default function ProfilePage() {
     setPreviewUrl(publicData.publicUrl);
   };
 
-  const handleBirthdateSave = async () => {
-    if (!birthdateInput) return alert('Select your birthdate');
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const { error } = await supabase
-      .from('profiles')
-      .update({ birthdate: birthdateInput })
-      .eq('id', user.id);
-    if (error) alert('Error saving birthdate');
-    else {
-      setProfile((prev) => ({ ...prev, birthdate: birthdateInput }));
-      alert('Birthdate saved!');
-    }
-  };
-
   const uploadExtraPhoto = async (event) => {
     if (isBanned) return alert('Banned users cannot upload extra photos.');
     if (extraPhotos.length >= 3) return alert('You can only upload 3 photos.');
@@ -210,6 +196,7 @@ export default function ProfilePage() {
       christma_points: prev.christma_points + 10,
     }));
   };
+    
 
   const removePhoto = async (photoId, photoUrl) => {
     if (isBanned) return alert('Banned users cannot remove extra photos.');
@@ -244,6 +231,7 @@ export default function ProfilePage() {
   return (
     <div style={{ maxWidth: '500px', margin: 'auto', padding: '20px' }}>
       <h2>My Profile</h2>
+  
       {isBanned && (
         <div style={{
           backgroundColor: '#ffe0e0',
@@ -257,16 +245,22 @@ export default function ProfilePage() {
           🚫 Та Бандуулсан байгаа тул энэ хэсэгт юу ч өөрчлөж чадахгүй. Юм өөрчлөхийн тулд бан гаас гарна уу!
         </div>
       )}
-
+  
       <div>
         <strong>Profile Picture</strong>
-        <br/>
+        <br />
         {previewUrl && (
-          <img src={previewUrl} alt="Avatar" style={{ width: 100, height: 100, borderRadius: '50%', objectFit: 'cover' }} />
+          <img
+            src={previewUrl}
+            alt="Avatar"
+            style={{ width: 100, height: 100, borderRadius: '50%', objectFit: 'cover', cursor: 'pointer' }}
+            onClick={() => setSelectedImage(previewUrl)}
+          />
         )}
-        <br/>
+        <br />
         <input type="file" accept="image/*" onChange={uploadAvatar} disabled={isBanned} />
       </div>
+  
       <br />
       <div>
         <strong>Nickname</strong>
@@ -278,41 +272,42 @@ export default function ProfilePage() {
           disabled={isBanned}
         />
       </div>
+  
       <br />
       <div>
         <strong>Username:</strong> {profile.username + " (You cannot change your username)"}
       </div>
-        <br></br>
+      <br />
       <div>
         <strong>Phone Number:</strong> {profile.phone_number || 'Not set'}
       </div>
-        <br></br>
+      <br />
       <div>
         <strong>Хүйс:</strong> {profile.gender || 'Not set'}
       </div>
-        <br></br>
+      <br />
       {profile.birthdate && (
         <div>
           <strong>Нас:</strong> {calculateAge(profile.birthdate)}
         </div>
       )}
-        <br></br>
+      <br />
       <div><strong>Christma оноо:</strong> {profile.christma_points}</div>
-        <br></br>
+      <br />
       <div><strong>Likes:</strong> {profile.like_count}</div>
-        <br></br>
+      <br />
       <div><strong>Болзоо:</strong> {profile.date_count}</div>
       <br />
-
+  
       <button onClick={updateProfile}>{loading ? 'Saving...' : 'Update Profile'} 🆕</button>
-      <hr></hr>
+      <hr />
       <button onClick={() => navigate('/leaderboard')}>🏆Leaderboard ийг харах</button>
       <br /><br />
       <button onClick={async () => {
         await supabase.auth.signOut();
         window.location.href = '/';
       }}>🚪 Гарах</button>
-
+  
       <hr />
       <h3>Миний зурагнууд (Дээд хэмжээ 3)</h3>
       <p>Нэг өөрийнхөө зургийг оруулах нь таньд 10 christma оноо өгнө.</p>
@@ -320,12 +315,59 @@ export default function ProfilePage() {
       <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '10px' }}>
         {extraPhotos.map((photo) => (
           <div key={photo.id}>
-            <img src={photo.photo_url} alt="Extra" style={{ width: 100, height: 100, objectFit: 'cover' }} />
+            <img
+              src={photo.photo_url}
+              alt="Extra"
+              style={{ width: 100, height: 100, objectFit: 'cover', cursor: 'pointer' }}
+              onClick={() => setSelectedImage(photo.photo_url)}
+            />
             <br />
             <button onClick={() => removePhoto(photo.id, photo.photo_url)} disabled={isBanned}>Remove</button>
           </div>
         ))}
       </div>
+  
+      {/* Image Modal Viewer */}
+      {selectedImage && (
+        <div
+          onClick={() => setSelectedImage(null)}
+          style={{
+            position: 'fixed',
+            top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000
+          }}
+        >
+          <img
+            src={selectedImage}
+            alt="Zoomed"
+            style={{
+              maxHeight: '90%',
+              maxWidth: '90%',
+              borderRadius: '10px',
+              boxShadow: '0 0 20px rgba(255,255,255,0.3)'
+            }}
+          />
+          <button
+            style={{
+              position: 'absolute',
+              top: 20,
+              right: 30,
+              fontSize: 30,
+              color: 'white',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer'
+            }}
+            onClick={() => setSelectedImage(null)}
+          >
+            ×
+          </button>
+        </div>
+      )}
     </div>
-  );
+  );  
 }

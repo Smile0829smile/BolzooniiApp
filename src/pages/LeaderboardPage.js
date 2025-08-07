@@ -63,6 +63,7 @@ export default function LeaderboardPage() {
   const [activeReportId, setActiveReportId] = useState(null);
   const [reportReasons, setReportReasons] = useState({});
   const [askedUserIds, setAskedUserIds] = useState([]);
+  const [adminUsers, setAdminUsers] = useState([]);
 
 
 
@@ -421,7 +422,7 @@ export default function LeaderboardPage() {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('id, username')
+        .select('id, username, is_admin')
         .eq('id', user.id)
         .single();
 
@@ -436,14 +437,20 @@ export default function LeaderboardPage() {
   async function fetchLeaderboard() {
     try {
       setLoading(true);
-      const { data } = await supabase
+      const { data: normalUsers } = await supabase
         .from('profiles')
-        .select('id, username, nickname, profile_pic, christma_points, gender')
-        .order('christma_points', { ascending: false })
-        .limit(500);
+        .select('id, username, nickname, profile_pic, christma_points, gender, is_admin')
+        .eq('is_admin', false)
+        .order('christma_points', { ascending: false });
 
-      setUsers(data);
-      setTop3UserIds(data.slice(0, 3).map((u) => u.id));
+      const { data: adminUsers } = await supabase
+        .from('profiles')
+        .select('id, username, nickname, profile_pic, christma_points, gender, is_admin')
+        .eq('is_admin', true);
+
+      setUsers(normalUsers);
+      setAdminUsers(adminUsers);
+      setTop3UserIds(normalUsers.slice(0, 3).map((u) => u.id));
     } catch (err) {
       setError(err);
     } finally {
@@ -1040,19 +1047,23 @@ export default function LeaderboardPage() {
           </div>
 
           <div>
-            <button onClick={() => onLike(user.id)}>❤️ Like</button>
-            {!askedUserIds.includes(user.id) && (
-              <button onClick={() => onAskDate(user.id)}>💌 Болзоо</button>
+            {!user.is_admin && !currentUser?.is_admin && (
+              <>
+                <button onClick={() => onLike(user.id)}>❤  Like</button>
+                {!askedUserIds.includes(user.id) && (
+                  <button onClick={() => onAskDate(user.id)}>💌  Болзоо</button>
+                )}
+              </>
             )}
             <button onClick={() => onViewProfile(user.id)}>👀 Profile үзэх</button>
 
-            {isTop3User && !isSelf && (
+            {isTop3User && !isSelf && !user.is_admin && (
               isBanned
                 ? <button onClick={() => onUnban(user.id)} style={{ backgroundColor: 'green', color: 'white' }}>
-                    ✅ Unban
+                    ✅  Unban
                   </button>
                 : <button onClick={() => onBan(user.id)} style={{ backgroundColor: 'red', color: 'white' }}>
-                    🚫 Ban
+                    🚫  Ban
                   </button>
             )}
 
@@ -1229,7 +1240,7 @@ export default function LeaderboardPage() {
         </div>
       )}
       
-      <h2>Ранк</h2>
+      <h2>Ранк 🏆</h2>
 
       {loading && <p>Loading...</p>}
       {error && <p style={{ color: 'red' }}>Error: {error.message}</p>}
@@ -1253,6 +1264,29 @@ export default function LeaderboardPage() {
                 assignTask={assignTask}
               />
             ))}
+        </>
+      )}
+      {adminUsers.length > 0 && (
+        <>
+          <hr />
+          <h3>👑 Admin Accounts</h3>
+          {adminUsers.map((user, index) => (
+            <UserCard
+              key={user.id}
+              user={user}
+              rank={index}
+              onLike={() => {}}
+              onAskDate={() => {}}
+              onViewProfile={handleViewProfile}
+              currentUser={currentUser}
+              top3UserIds={top3UserIds}
+              onBan={() => {}}
+              onUnban={() => {}}
+              isBanned={false}
+              isSelf={false}
+              assignTask={() => {}}
+            />
+          ))}
         </>
       )}
       <hr></hr>
