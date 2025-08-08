@@ -1021,11 +1021,11 @@ export default function LeaderboardPage() {
       <li style={{
         listStyle: 'none',
         marginBottom: '20px',
-        backgroundColor: isUserTop3Rank ? '#fffae6' : 'transparent',
+        backgroundColor: isUserTop3Rank || user.is_admin ? '#fffae6' : 'transparent',
         borderRadius: '8px',
         padding: '10px',
-        boxShadow: isUserTop3Rank ? '0 0 10px rgba(255, 215, 0, 0.5)' : 'none',
-      }}>
+        boxShadow: isUserTop3Rank || user.is_admin ? '0 0 10px rgba(255, 215, 0, 0.5)' : 'none',
+      }}>      
         <div style={{ display: 'flex', alignItems: 'center' }}>
           {user.profile_pic && (
             <img
@@ -1041,7 +1041,8 @@ export default function LeaderboardPage() {
             />          
           )}
           <div style={{ flexGrow: 1 }}>
-            <strong>#{rank + 1}</strong> {user.nickname} | {user.christma_points}✨
+            <strong>#{rank + 1}</strong> {user.nickname}
+            {!user.is_admin && <> | {user.christma_points}✨</>}
             <br />
             Хүйс: {user.gender}
           </div>
@@ -1290,7 +1291,7 @@ export default function LeaderboardPage() {
         </>
       )}
       <hr></hr>
-      <h3>Creator: Nazuke</h3>
+      <h3>Үүсгэн байгуулагч: Nazuke</h3>
     </div>
   );
 }

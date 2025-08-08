@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import React from 'react';
 
-
 function calculateAge(birthdate) {
   if (!birthdate) return null;
   const today = new Date();
@@ -29,6 +28,8 @@ export default function ProfilePage() {
     like_count: 0,
     date_count: 0,
     phone_number: '',
+    location: '',
+    is_admin: false,
   });
   const [extraPhotos, setExtraPhotos] = useState([]);
   const [birthdateInput, setBirthdateInput] = useState('');
@@ -36,15 +37,10 @@ export default function ProfilePage() {
   const navigate = useNavigate();
   const [selectedImage, setSelectedImage] = useState(null);
 
-
   useEffect(() => {
     const checkBanAndFetchProfile = async () => {
       setLoading(true);
-
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
 
       if (userError || !user) {
         console.error('User not found:', userError);
@@ -52,7 +48,6 @@ export default function ProfilePage() {
         return;
       }
 
-      // Check if user is banned
       const { data: bannedData, error: banError } = await supabase
         .from('bans')
         .select('banned_user_id')
@@ -65,9 +60,7 @@ export default function ProfilePage() {
         return;
       }
 
-      if (bannedData) {
-        setIsBanned(true);
-      }
+      if (bannedData) setIsBanned(true);
 
       const { data, error } = await supabase
         .from('profiles')
@@ -88,6 +81,8 @@ export default function ProfilePage() {
           like_count: data.like_count || 0,
           date_count: data.date_count || 0,
           phone_number: data.phone_number || '',
+          location: data.location || '',
+          is_admin: data.is_admin || false,
         });
         setPreviewUrl(data.profile_pic || '');
         setBirthdateInput(data.birthdate || '');
@@ -111,21 +106,15 @@ export default function ProfilePage() {
       alert('Нэрээ заавал оруулна уу!');
       return;
     }
-  
-    setLoading(true);  
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+
+    setLoading(true);
+    const { data: { user } } = await supabase.auth.getUser();
     if (!user) return alert('Not logged in');
 
     const updates = {
       id: user.id,
       nickname: profile.nickname,
-      birthdate: profile.birthdate,
       profile_pic: profile.profile_pic,
-      is_in_relationship: profile.is_in_relationship,
-      is_on_break: profile.is_on_break,
-      gender: profile.gender,
       updated_at: new Date(),
     };
 
@@ -136,12 +125,13 @@ export default function ProfilePage() {
   };
 
   const uploadAvatar = async (event) => {
-    if (isBanned) return alert('Banned users cannot change their profile picture.');
+    if (isBanned) return alert('Бандуулсан хэрэглэгч зурагаа сольж болохгүй.');
     const file = event.target.files[0];
     if (!file) return;
     const fileExt = file.name.split('.').pop();
     const fileName = `${Date.now()}.${fileExt}`;
     const filePath = `avatars/${fileName}`;
+
     const { error: uploadError } = await supabase.storage
       .from('avatars')
       .upload(filePath, file, { cacheControl: '3600', upsert: false });
@@ -156,14 +146,12 @@ export default function ProfilePage() {
   };
 
   const uploadExtraPhoto = async (event) => {
-    if (isBanned) return alert('Banned users cannot upload extra photos.');
-    if (extraPhotos.length >= 3) return alert('You can only upload 3 photos.');
+    if (isBanned) return alert('Бандуулсан хэрэглэгч зураг оруулж болохгүй.');
+    if (extraPhotos.length >= 3) return alert('Та ихдээ 3 зураг оруулах боломжтой.');
     const file = event.target.files[0];
     if (!file) return;
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
     const fileExt = file.name.split('.').pop();
     const fileName = `${Date.now()}.${fileExt}`;
     const filePath = `extra_photos/${user.id}/${fileName}`;
@@ -172,7 +160,7 @@ export default function ProfilePage() {
       .from('avatars')
       .upload(filePath, file);
 
-    if (uploadError) return alert('Upload failed');
+    if (uploadError) return alert('Зураг оруулах үед алдаа гарлаа.');
 
     const { data: publicData } = await supabase.storage
       .from('avatars')
@@ -196,13 +184,10 @@ export default function ProfilePage() {
       christma_points: prev.christma_points + 10,
     }));
   };
-    
 
   const removePhoto = async (photoId, photoUrl) => {
-    if (isBanned) return alert('Banned users cannot remove extra photos.');
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    if (isBanned) return alert('Бандуулсан хэрэглэгч зураг нэмж оруулж болохгүй.');
+    const { data: { user } } = await supabase.auth.getUser();
 
     const filePath = decodeURIComponent(new URL(photoUrl).pathname.split('/').slice(2).join('/'));
 
@@ -230,8 +215,8 @@ export default function ProfilePage() {
 
   return (
     <div style={{ maxWidth: '500px', margin: 'auto', padding: '20px' }}>
-      <h2>My Profile</h2>
-  
+      <h1>My Profile</h1>
+
       {isBanned && (
         <div style={{
           backgroundColor: '#ffe0e0',
@@ -245,9 +230,9 @@ export default function ProfilePage() {
           🚫 Та Бандуулсан байгаа тул энэ хэсэгт юу ч өөрчлөж чадахгүй. Юм өөрчлөхийн тулд бан гаас гарна уу!
         </div>
       )}
-  
+
       <div>
-        <strong>Profile Picture</strong>
+        <strong>Profile Зураг</strong>
         <br />
         {previewUrl && (
           <img
@@ -260,11 +245,10 @@ export default function ProfilePage() {
         <br />
         <input type="file" accept="image/*" onChange={uploadAvatar} disabled={isBanned} />
       </div>
-  
+
       <br />
       <div>
-        <strong>Nickname</strong>
-        <br />
+        <strong>Nickname: </strong>
         <input
           type="text"
           value={profile.nickname}
@@ -272,14 +256,21 @@ export default function ProfilePage() {
           disabled={isBanned}
         />
       </div>
-  
+      <br />
+      <button onClick={updateProfile}>{loading ? 'Хадгалж байна...' : 'Хадгалах'} 🆕</button>
+      <br />
+      <hr />
       <br />
       <div>
-        <strong>Username:</strong> {profile.username + " (You cannot change your username)"}
+        <strong>Username:</strong> {profile.username + " (Та энэ нэрийг сольж болохгүй)"}
       </div>
       <br />
       <div>
-        <strong>Phone Number:</strong> {profile.phone_number || 'Not set'}
+        <strong>Утасны дугаар:</strong> {profile.phone_number || 'Not set'}
+      </div>
+      <br />
+      <div>
+        <strong>Байршил:</strong> {profile.location || 'Not set'}
       </div>
       <br />
       <div>
@@ -292,22 +283,25 @@ export default function ProfilePage() {
         </div>
       )}
       <br />
-      <div><strong>Christma оноо:</strong> {profile.christma_points}</div>
-      <br />
-      <div><strong>Likes:</strong> {profile.like_count}</div>
-      <br />
-      <div><strong>Болзоо:</strong> {profile.date_count}</div>
-      <br />
-  
-      <button onClick={updateProfile}>{loading ? 'Saving...' : 'Update Profile'} 🆕</button>
+      
+      {!profile.is_admin && (
+        <>
+          <div><strong>Christma оноо:</strong> {profile.christma_points}</div>
+          <br />
+          <div><strong>Likes:</strong> {profile.like_count}</div>
+          <br />
+          <div><strong>Болзоо:</strong> {profile.date_count}</div>
+          <br />
+        </>
+      )}
       <hr />
-      <button onClick={() => navigate('/leaderboard')}>🏆Leaderboard ийг харах</button>
+      <button onClick={() => navigate('/leaderboard')}>🏆 Leaderboard ийг харах</button>
       <br /><br />
       <button onClick={async () => {
         await supabase.auth.signOut();
         window.location.href = '/';
       }}>🚪 Гарах</button>
-  
+
       <hr />
       <h3>Миний зурагнууд (Дээд хэмжээ 3)</h3>
       <p>Нэг өөрийнхөө зургийг оруулах нь таньд 10 christma оноо өгнө.</p>
@@ -322,12 +316,11 @@ export default function ProfilePage() {
               onClick={() => setSelectedImage(photo.photo_url)}
             />
             <br />
-            <button onClick={() => removePhoto(photo.id, photo.photo_url)} disabled={isBanned}>Remove</button>
+            <button onClick={() => removePhoto(photo.id, photo.photo_url)} disabled={isBanned}>Устгах</button>
           </div>
         ))}
       </div>
-  
-      {/* Image Modal Viewer */}
+
       {selectedImage && (
         <div
           onClick={() => setSelectedImage(null)}
@@ -369,5 +362,5 @@ export default function ProfilePage() {
         </div>
       )}
     </div>
-  );  
+  );
 }

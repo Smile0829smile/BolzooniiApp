@@ -257,7 +257,7 @@ export default function AuthPage() {
 
           <input
             type="text"
-            placeholder="Admin Code (if you have one)"
+            placeholder="Admin Code (Та админ бол оруулна.)"
             value={adminCode}
             onChange={(e) => setAdminCode(e.target.value)}
             style={{ marginBottom: '0.5rem', width: '100%' }}

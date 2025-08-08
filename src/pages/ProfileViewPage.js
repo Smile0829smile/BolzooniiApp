@@ -121,13 +121,20 @@ export default function ProfileViewPage() {
       )}
 
       <p>Username: {profile.username}</p>
-      <p>Christma оноо: {profile.christma_points}</p>
+      {!profile.is_admin && (
+        <>
+          <p>Christma оноо: {profile.christma_points}</p>
+          <p>Likes: {profile.like_count}</p>
+          <p>Болзоо: {profile.date_count}</p>
+        </>
+      )}
       <p>Email: {profile.email || 'Not provided'}</p>
       <p>Утас: {profile.phone_number || 'Not provided'}</p>
       <p>Хүйс: {profile.gender}</p>
       <p>Нас: {calculateAge(profile.birthdate)}</p>
-      <p>Likes: {profile.like_count}</p>
-      <p>Болзоо: {profile.date_count}</p>
+      <p>Байршил: {profile.location || 'Байршил оруулаагүй'}</p>
+
+      
 
       <h3 style={{ marginTop: '30px' }}>📸 Нэмэлт зураг</h3>
       {extraPhotos.length > 0 ? (
@@ -152,7 +159,6 @@ export default function ProfileViewPage() {
         <p>Энэ хэрэглэгч ямар ч зураг оруулаагүй байна.</p>
       )}
 
-      {/* Modal for expanded image */}
       {expandedImage && (
         <div
           onClick={closeImageModal}
@@ -172,7 +178,7 @@ export default function ProfileViewPage() {
         >
           <button
             onClick={(e) => {
-              e.stopPropagation(); // prevent modal close on button click
+              e.stopPropagation();
               closeImageModal();
             }}
             style={{
