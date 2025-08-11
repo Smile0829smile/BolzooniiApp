@@ -36,6 +36,9 @@ export default function ProfilePage() {
   const [previewUrl, setPreviewUrl] = useState('');
   const navigate = useNavigate();
   const [selectedImage, setSelectedImage] = useState(null);
+  const [isEditingLocation, setIsEditingLocation] = useState(false);
+  const [tempLocation, setTempLocation] = useState('');
+
 
   useEffect(() => {
     const checkBanAndFetchProfile = async () => {
@@ -211,6 +214,41 @@ export default function ProfilePage() {
     }
   };
 
+  const detectLocation = () => {
+    if (!navigator.geolocation) return alert('Geolocation not supported.');
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`
+          );
+          const data = await res.json();
+          const city = data.address.city || data.address.town || data.address.village || '';
+          const state = data.address.state || '';
+          const country = data.address.country || '';
+          const detectedLocation = [city, state, country].filter(Boolean).join(', ');
+  
+          // Save to Supabase
+          const { data: { user } } = await supabase.auth.getUser();
+          const { error } = await supabase
+            .from('profiles')
+            .update({ location: detectedLocation })
+            .eq('id', user.id);
+  
+          if (error) return alert(error.message);
+  
+          setProfile((prev) => ({ ...prev, location: detectedLocation }));
+          alert('Location updated!');
+        } catch (err) {
+          alert('Failed to detect location.');
+        }
+      },
+      () => alert('Location permission denied.')
+    );
+  };  
+  
+
   if (loading) return <p>Loading profile...</p>;
 
   return (
@@ -236,11 +274,11 @@ export default function ProfilePage() {
         <br />
         {previewUrl && (
           <img
-            src={previewUrl}
-            alt="Avatar"
-            style={{ width: 100, height: 100, borderRadius: '50%', objectFit: 'cover', cursor: 'pointer' }}
-            onClick={() => setSelectedImage(previewUrl)}
-          />
+          src={previewUrl || 'https://supabase.com/dashboard/project/uhzxbeusepqzwysxboqk/storage/buckets/avatars/profile_picture.jpg'}
+          alt="Avatar"
+          style={{ width: 100, height: 100, borderRadius: '50%', objectFit: 'cover', cursor: 'pointer' }}
+          onClick={() => setSelectedImage(previewUrl)}
+        />        
         )}
         <br />
         <input type="file" accept="image/*" onChange={uploadAvatar} disabled={isBanned} />
@@ -270,7 +308,9 @@ export default function ProfilePage() {
       </div>
       <br />
       <div>
-        <strong>Байршил:</strong> {profile.location || 'Not set'}
+        <strong>Байршил:</strong>{' '}
+        {profile.location || 'Not set'}{' '}
+        <button onClick={detectLocation}>📍 Detect</button>
       </div>
       <br />
       <div>

@@ -107,8 +107,7 @@ export default function AuthPage() {
         !nickname.trim() ||
         !birthdate ||
         !gender ||
-        !phoneNumber.trim() ||
-        !location.trim()
+        !phoneNumber.trim()
       ) {
         alert('Админ кодноос бусад бүгдийг бөглөнө үү, баярлалаа.');
         return;
