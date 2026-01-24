@@ -160,19 +160,36 @@ export default function AuthPage() {
         navigate('/profile');
       }
     } else {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-
+    
       if (error) {
         alert(error.message);
         return;
       }
-
+    
+      const user = data.user;
+    
+      // 🔍 Check if profile exists
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+    
+      // ❗ No profile found → BLOCK navigation
+      if (profileError || !profile) {
+        alert('Profile not found. Please sign up first.');
+        await supabase.auth.signOut();
+        return;
+      }
+    
       navigate('/profile');
     }
-  };
+  }
+    
 
   return (
     <div style={{ padding: '2rem', maxWidth: '400px', margin: 'auto' }}>
