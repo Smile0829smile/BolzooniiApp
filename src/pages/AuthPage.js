@@ -181,7 +181,7 @@ export default function AuthPage() {
     
       // ❗ No profile found → BLOCK navigation
       if (profileError || !profile) {
-        alert('Profile not found. Please sign up first.');
+        alert('Profile олдсонгүй. Эхлээд бүртгүүлэнэ үү');
         await supabase.auth.signOut();
         return;
       }
