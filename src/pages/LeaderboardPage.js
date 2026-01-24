@@ -32,16 +32,16 @@ function DateRequestCard({ request, onAccept, onReject }) {
           />
         )}
         <span>
-          <strong>{requester?.username || 'Unknown'}</strong> wants to go on a date with you!{' '}
+          <strong>{requester?.username || 'Unknown'}</strong> тань руу болзооны санал явуулсан байна!{' '}
           {status === 'pending' ? '' : `(${status})`}
         </span>
       </div>
       {status === 'pending' && (
         <div>
           <button onClick={() => onAccept(id, requester?.username)} style={{ marginRight: '5px' }}>
-            ✅ Accept
+            ✅ Зөвшөөрөх
           </button>
-          <button onClick={() => onReject(id)}>❌ Reject</button>
+          <button onClick={() => onReject(id)}>❌ Татгалзах</button>
         </div>
       )}
     </li>
@@ -132,31 +132,16 @@ export default function LeaderboardPage() {
     const randomTask = tasks[Math.floor(Math.random() * tasks.length)];
   
     // Insert tasks for both users
-    const insertRes = await supabase.from('couple_task').insert([
-      {
-        assigner_id: null,
-        assignee_id: user1_id,
-        task_text: randomTask,
-        assigned_at: new Date(),
-        completed: false,
-        partner_rated: false,
-        partner_rating: null,
-      },
-      {
-        assigner_id: null,
-        assignee_id: user2_id,
-        task_text: randomTask,
-        assigned_at: new Date(),
-        completed: false,
-        partner_rated: false,
-        partner_rating: null,
-      },
-    ]);
-  
-    if (insertRes.error) {
-      console.error('Error assigning couple task:', insertRes.error);
-      return;
+    const { error } = await supabase.rpc('assign_couple_task', {
+      u1: user1_id,
+      u2: user2_id,
+      task: randomTask,
+    });
+    
+    if (error) {
+      console.error('Error assigning couple task:', error);
     }
+    
   
     // Add public notification
     const message = `Шинэ хосийн даалгавар ${usernames[0]}, ${usernames[1]} хоёрт оногдлоо! 💑 Даалгавар: "${randomTask}"`;
@@ -272,25 +257,27 @@ export default function LeaderboardPage() {
 
   async function fetchBans() {
     const top3Ids = await fetchTop3UserIds();
-
-    const { data: bans, error } = await supabase
+  
+    let query = supabase
       .from('bans')
-      .select('banned_user_id')
-      .eq('banned_by_id', currentUser.id);
-
-    const { date: profiles} = await supabase
-      .from('profiles')
-      .select('is_banned, id')
-      .eq('id', bans.banned_user_id)
-      .eq('is_banned', true)
-
+      .select('banned_user_id');
+  
+    // Top3 → only see their own bans
+    if (!currentUser.is_admin) {
+      query = query.eq('banned_by_id', currentUser.id);
+    }
+  
+    const { data: bans, error } = await query;
+  
     if (error) {
       console.error('Error fetching bans:', error);
       return;
     }
-
-    const filteredBans = bans.filter(bans => !top3Ids.includes(bans.banned_user_id));
-
+  
+    const filteredBans = bans.filter(
+      b => !top3Ids.includes(b.banned_user_id)
+    );
+  
     setBannedUserIds(new Set(filteredBans.map(b => b.banned_user_id)));
   }
 
@@ -368,36 +355,47 @@ export default function LeaderboardPage() {
 
   // ✅ Corrected unban handler
   async function handleUnbanUser(unbanUserId) {
-    await supabase
+    let query = supabase
       .from('bans')
       .delete()
-      .eq('banned_user_id', unbanUserId)
-      .eq('banned_by_id', currentUser.id); // FIXED HERE
-    
-    // Fetch banned user's username for notification
-    const { data: unBannedUserProfile, error: profileError } = await supabase
+      .eq('banned_user_id', unbanUserId);
+  
+    // Top3 users can only remove THEIR OWN bans
+    if (!currentUser.is_admin) {
+      query = query.eq('banned_by_id', currentUser.id);
+    }
+  
+    const { error } = await query;
+  
+    if (error) {
+      console.error('Error unbanning user:', error);
+      alert('Unban амжилтгүй боллоо.');
+      return;
+    }
+  
+    // Fetch username for notification
+    const { data: unbannedProfile } = await supabase
       .from('profiles')
       .select('username')
       .eq('id', unbanUserId)
       .single();
-
-
-    // Insert notification AFTER successful ban
+  
     await supabase.from('notifications').insert({
-      user_id: null, // or the user you want to notify if any
-      message: `${currentUser.username} нь ${unBannedUserProfile.username} ийг бангаас гаргалаа! ✅`,
+      user_id: null,
+      message: `${currentUser.username} нь ${unbannedProfile.username} ийг бангаас гаргалаа! ✅`,
     });
-
+  
     await fetchBans();
+    fetchLeaderboard();
   }
+  
 
 
   async function isUserDating(userId) {
     const { data, error } = await supabase
-      .from('dating')
+      .from('date_requests')
       .select('id')
-      .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
-      .eq('status', 'accepted') // ✅ Only accepted counts as dating
+      .or(`and(requester_id.eq.${userId},status.eq.accepted),and(requested_id.eq.${userId},status.eq.accepted)`)
       .limit(1)
       .maybeSingle();
   
@@ -406,7 +404,7 @@ export default function LeaderboardPage() {
       return false;
     }
   
-    return !!data; // true if currently dating
+    return !!data;
   }  
   
 
@@ -938,54 +936,60 @@ export default function LeaderboardPage() {
     if (!activeDate) return;
   
     try {
-      // Fetch the date request record
-      const { data: dateRequest, error } = await supabase
-        .from('date_requests')
-        .select('id, created_at, requester_id, requested_id')
-        .eq('id', activeDate.id)
+      // 1️⃣ Fetch dating record (this is the real start time)
+      const { data: datingRow, error: datingError } = await supabase
+        .from('dating')
+        .select('started_at, user1_id, user2_id')
+        .or(
+          `user1_id.eq.${currentUser.id},user2_id.eq.${currentUser.id}`
+        )
         .single();
   
-      if (error) {
-        console.error('Error fetching date request:', error);
+      if (datingError || !datingRow) {
+        console.error('Error fetching dating record:', datingError);
         return;
       }
   
-      const createdAtUTC = new Date(dateRequest.created_at).getTime(); // Supabase timestamp (UTC)
-      const nowUTC = new Date().getTime(); // Current time (UTC)
+      const startedAtUTC = Date.parse(datingRow.started_at); // UTC
+      const nowUTC = Date.now(); // UTC
   
-      const hoursDiff = (nowUTC - createdAtUTC) / (1000 * 60 * 60);
-      console.log('Created At:', new Date(createdAtUTC).toISOString());
-      console.log('Now:', new Date(nowUTC).toISOString());
-      console.log('Hour Difference:', hoursDiff);
+      const diffMs = nowUTC - startedAtUTC;
   
-      if (hoursDiff < 24) {
-        const remainingMs = (24 - hoursDiff) * 60 * 60 * 1000;
+      // 2️⃣ Enforce 24-hour rule
+      if (diffMs < 24 * 60 * 60 * 1000) {
+        const remainingMs = 24 * 60 * 60 * 1000 - diffMs;
+  
         const remainingHours = Math.floor(remainingMs / (1000 * 60 * 60));
-        const remainingMinutes = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60));
-        alert(`Та багадаа 24 цаг болзох ёстой. ${remainingHours} цаг ${remainingMinutes} минутын дараа дахин үзнэ үү.`);
-        return;
-      }      
+        const remainingMinutes = Math.floor(
+          (remainingMs % (1000 * 60 * 60)) / (1000 * 60)
+        );
   
-      // End the date
+        alert(
+          `Та багадаа 24 цаг болзох ёстой. ${remainingHours} цаг ${remainingMinutes} минутын дараа дахин үзнэ үү.`
+        );
+        return;
+      }
+  
+      // 3️⃣ End the date
       await supabase
         .from('date_requests')
         .update({ status: 'ended' })
         .eq('id', activeDate.id);
   
-      // Get both usernames
+      // 4️⃣ Fetch usernames
       const { data: requesterProfile } = await supabase
         .from('profiles')
         .select('username')
-        .eq('id', dateRequest.requester_id)
+        .eq('id', datingRow.user1_id)
         .single();
   
       const { data: requestedProfile } = await supabase
         .from('profiles')
         .select('username')
-        .eq('id', dateRequest.requested_id)
+        .eq('id', datingRow.user2_id)
         .single();
   
-      // Notify everyone
+      // 5️⃣ Public notification
       await supabase.from('notifications').insert({
         user_id: null,
         message: `💔 ${requesterProfile.username} ба ${requestedProfile.username} болзоогоо дуусгалаа.`,
@@ -996,10 +1000,12 @@ export default function LeaderboardPage() {
       setActiveDate(null);
       fetchLeaderboard();
       fetchIncomingDateRequests();
+  
     } catch (err) {
       console.error('Error ending date:', err);
     }
-  }  
+  }
+  
 
   // ✅ define this inside the component
   const handleViewProfile = (userId) => {
@@ -1066,6 +1072,15 @@ export default function LeaderboardPage() {
                 : <button onClick={() => onBan(user.id)} style={{ backgroundColor: 'red', color: 'white' }}>
                     🚫  Ban
                   </button>
+            )}
+
+            {currentUser?.is_admin && isBanned && !user.is_admin && (
+              <button
+                onClick={() => onUnban(user.id)}
+                style={{ backgroundColor: 'green', color: 'white' }}
+              >
+                ✅ Unban (Admin)
+              </button>
             )}
 
             {isTop3User && isBanned && (

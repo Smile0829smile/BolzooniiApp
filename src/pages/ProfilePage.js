@@ -151,42 +151,53 @@ export default function ProfilePage() {
   const uploadExtraPhoto = async (event) => {
     if (isBanned) return alert('Бандуулсан хэрэглэгч зураг оруулж болохгүй.');
     if (extraPhotos.length >= 3) return alert('Та ихдээ 3 зураг оруулах боломжтой.');
+    if (profile.is_admin) {
+      alert('Admin хэрэглэгчид зураг оруулснаар оноо авахгүй.');
+    }
+  
     const file = event.target.files[0];
     if (!file) return;
-
+  
     const { data: { user } } = await supabase.auth.getUser();
+  
     const fileExt = file.name.split('.').pop();
     const fileName = `${Date.now()}.${fileExt}`;
     const filePath = `extra_photos/${user.id}/${fileName}`;
-
+  
     const { error: uploadError } = await supabase.storage
       .from('avatars')
       .upload(filePath, file);
-
+  
     if (uploadError) return alert('Зураг оруулах үед алдаа гарлаа.');
-
+  
     const { data: publicData } = await supabase.storage
       .from('avatars')
       .getPublicUrl(filePath);
-
+  
     const { error: insertError, data: newPhoto } = await supabase
       .from('extra_photos')
       .insert([{ user_id: user.id, photo_url: publicData.publicUrl }])
       .select()
       .single();
-
+  
     if (insertError) return alert('Insert photo failed');
+  
     setExtraPhotos([...extraPhotos, newPhoto]);
-
-    await supabase
-      .from('profiles')
-      .update({ christma_points: profile.christma_points + 10 })
-      .eq('id', user.id);
-    setProfile((prev) => ({
-      ...prev,
-      christma_points: prev.christma_points + 10,
-    }));
+  
+    // ✅ ONLY give points if NOT admin
+    if (!profile.is_admin) {
+      await supabase
+        .from('profiles')
+        .update({ christma_points: profile.christma_points + 10 })
+        .eq('id', user.id);
+  
+      setProfile((prev) => ({
+        ...prev,
+        christma_points: prev.christma_points + 10,
+      }));
+    }
   };
+  
 
   const removePhoto = async (photoId, photoUrl) => {
     if (isBanned) return alert('Бандуулсан хэрэглэгч зураг нэмж оруулж болохгүй.');
@@ -274,7 +285,7 @@ export default function ProfilePage() {
         <br />
         {previewUrl && (
           <img
-          src={previewUrl || 'https://supabase.com/dashboard/project/uhzxbeusepqzwysxboqk/storage/buckets/avatars/profile_picture.jpg'}
+          src={previewUrl || 'https://supabase.com/dashboard/project/uhzxbeusepqzwysxboqk/storage/buckets/avatars/profible_picture.jpg'}
           alt="Avatar"
           style={{ width: 100, height: 100, borderRadius: '50%', objectFit: 'cover', cursor: 'pointer' }}
           onClick={() => setSelectedImage(previewUrl)}
