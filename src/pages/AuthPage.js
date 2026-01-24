@@ -16,8 +16,7 @@ export default function AuthPage() {
   const [isSigningUp, setIsSigningUp] = useState(false);
   const navigate = useNavigate();
 
-  const SECRET_ADMIN_CODE = 'Admin2025Bolzoo'; // Replace with your real secret code
-
+  const SECRET_ADMIN_CODE = 'Admin2025Bolzoo'; // Admin code!!!!
   // Calculate age from birthdate
   function calculateAge(birthdate) {
     const today = new Date();
