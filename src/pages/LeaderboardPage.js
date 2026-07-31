@@ -461,21 +461,47 @@ export default function LeaderboardPage() {
     try {
       const { data: requests } = await supabase
         .from('date_requests')
-        .select('id, requester_id, status, created_at')
+        .select('id, requester_id, status, created_at, expires_at')
         .eq('requested_id', currentUser.id)
         .order('created_at', { ascending: false });
 
-      const requesterIds = requests.map((r) => r.requester_id);
+        if (!requests) {
+          setIncomingDateRequests([]);
+          return;
+        }
+
+        const now = new Date().toISOString();
+
+        for (const request of requests || []) {
+          if (
+            request.status === 'pending' &&
+            request.expires_at &&
+            request.expires_at < now
+          ) {
+            await supabase
+              .from('date_requests')
+              .update({ status: 'expired' })
+              .eq('id', request.id);
+        
+            request.status = 'expired';
+          }
+        }
+
+        const requesterIds = requests
+        .filter((r) => r.status === 'pending')
+        .map((r) => r.requester_id);
       const { data: requestersProfiles } = await supabase
         .from('profiles')
         .select('id, username, profile_pic')
         .in('id', requesterIds);
 
-      const combined = requests.map((r) => ({
-        ...r,
-        requester: requestersProfiles.find((p) => p.id === r.requester_id),
-      }));
-
+        const combined = requests
+        .filter((r) => r.status === 'pending')
+        .map((r) => ({
+          ...r,
+          requester: requestersProfiles.find((p) => p.id === r.requester_id),
+        }));
+      
       setIncomingDateRequests(combined);
     } catch (err) {
       console.error('Error fetching date requests:', err);
@@ -752,10 +778,21 @@ export default function LeaderboardPage() {
         return;
       }
   
+      const expiresAt = new Date(
+        Date.now() + 24 * 60 * 60 * 1000
+      ).toISOString();
+      
       // 📬 Insert new request
       await supabase
         .from('date_requests')
-        .insert([{ requester_id: currentUser.id, requested_id: requestedId, status: 'pending' }]);
+        .insert([
+          {
+            requester_id: currentUser.id,
+            requested_id: requestedId,
+            status: 'pending',
+            expires_at: expiresAt
+          }
+        ]);
   
       // 🎁 Update Christma points
       const isRequesterTop3 = top3UserIds.includes(currentUser.id);
@@ -796,15 +833,7 @@ export default function LeaderboardPage() {
     }
   
     try {
-      // 1. Mark the request as accepted
-      const { error: acceptError } = await supabase
-        .from('date_requests')
-        .update({ status: 'accepted' })
-        .eq('id', requestId);
-  
-      if (acceptError) throw acceptError;
-  
-      // 2. Fetch the date request to get requester_id
+      // 1. Fetch the date request
       const { data: dateData, error: dateError } = await supabase
         .from('date_requests')
         .select('*')
@@ -813,7 +842,42 @@ export default function LeaderboardPage() {
   
       if (dateError) throw dateError;
   
-      // 3. Fetch date_count and christma_points for both users
+      // 2. Check if either user is already in a relationship
+      const datingFilter =
+        `user1_id.eq.${currentUser.id},` +
+        `user2_id.eq.${currentUser.id},` +
+        `user1_id.eq.${dateData.requester_id},` +
+        `user2_id.eq.${dateData.requester_id}`;
+  
+      const { data: existingDating, error: datingCheckError } = await supabase
+        .from('dating')
+        .select('id')
+        .or(datingFilter);
+  
+      if (datingCheckError) throw datingCheckError;
+  
+      if (existingDating && existingDating.length > 0) {
+        alert('Энэ хэрэглэгч эсвэл та аль хэдийн болзож байна.');
+  
+        // Cancel this request since someone is already dating
+        await supabase
+          .from('date_requests')
+          .update({ status: 'cancelled' })
+          .eq('id', requestId);
+  
+        fetchIncomingDateRequests();
+        return;
+      }
+  
+      // 3. Mark request accepted
+      const { error: acceptError } = await supabase
+        .from('date_requests')
+        .update({ status: 'accepted' })
+        .eq('id', requestId);
+  
+      if (acceptError) throw acceptError;
+  
+      // 4. Fetch profiles
       const { data: profilesData, error: fetchError } = await supabase
         .from('profiles')
         .select('id, date_count, christma_points')
@@ -821,72 +885,90 @@ export default function LeaderboardPage() {
   
       if (fetchError) throw fetchError;
   
-      const currentUserProfile = profilesData.find(p => p.id === currentUser.id);
-      const requesterProfile = profilesData.find(p => p.id === dateData.requester_id);
+      const currentUserProfile = profilesData.find(
+        p => p.id === currentUser.id
+      );
+      const requesterProfile = profilesData.find(
+        p => p.id === dateData.requester_id
+      );
   
-      // Increment their date counts
-      const newCurrentUserCount = (currentUserProfile?.date_count || 0) + 1;
-      const newRequesterCount = (requesterProfile?.date_count || 0) + 1;
+      const newCurrentUserCount =
+        (currentUserProfile?.date_count || 0) + 1;
   
-      // Fetch the requester's username if not passed in
-      const { data: requesterProfileData, error: usernameError } = await supabase
-        .from('profiles')
-        .select('username')
-        .eq('id', dateData.requester_id)
-        .single();
+      const newRequesterCount =
+        (requesterProfile?.date_count || 0) + 1;
+  
+      // 5. Get requester's username
+      const { data: requesterProfileData, error: usernameError } =
+        await supabase
+          .from('profiles')
+          .select('username')
+          .eq('id', dateData.requester_id)
+          .single();
   
       if (usernameError) throw usernameError;
   
-      const requesterUsername = requesterProfileData.username;
+      requesterUsername = requesterProfileData.username;
   
-      // 4. Update currentUser date_count
-      const { error: updateCurrentUserError } = await supabase
+      // 6. Update date counts
+      await supabase
         .from('profiles')
         .update({ date_count: newCurrentUserCount })
         .eq('id', currentUser.id);
   
-      if (updateCurrentUserError) throw updateCurrentUserError;
-  
-      // 5. Update requester date_count
-      const { error: updateRequesterError } = await supabase
+      await supabase
         .from('profiles')
         .update({ date_count: newRequesterCount })
         .eq('id', dateData.requester_id);
   
-      if (updateRequesterError) throw updateRequesterError;
-  
-      console.log(`✅ date_count incremented: currentUser=${newCurrentUserCount}, requester=${newRequesterCount}`);
-  
-      // 6. Insert into dating table
+      // 7. Create dating relationship
       const { data: couple, error: datingError } = await supabase
         .from('dating')
-        .insert([{ user1_id: dateData.requester_id, user2_id: currentUser.id }])
+        .insert([
+          {
+            user1_id: dateData.requester_id,
+            user2_id: currentUser.id,
+          },
+        ])
         .select()
         .single();
   
       if (datingError) throw datingError;
   
-      console.log('✅ Couple created with id:', couple.id);
+      // 8. Cancel every other pending request involving either user
+      const cancelFilter =
+        `requester_id.eq.${currentUser.id},` +
+        `requested_id.eq.${currentUser.id},` +
+        `requester_id.eq.${dateData.requester_id},` +
+        `requested_id.eq.${dateData.requester_id}`;
   
-      // 6.5 Give 5 Christma points to requester
-      const updatedRequesterPoints = (requesterProfile?.christma_points || 0) + 5;
+      await supabase
+        .from('date_requests')
+        .update({ status: 'cancelled' })
+        .eq('status', 'pending')
+        .neq('id', requestId)
+        .or(cancelFilter);
+  
+      // 9. Give requester 5 Christma Points
+      const updatedRequesterPoints =
+        (requesterProfile?.christma_points || 0) + 5;
   
       await supabase
         .from('profiles')
         .update({ christma_points: updatedRequesterPoints })
         .eq('id', dateData.requester_id);
   
-      // 7. Optional notification (kept as-is)
+      // 10. Notification
       await supabase.from('notifications').insert({
         user_id: null,
         message: `${currentUser.username} нь ${requesterUsername} ий болзооны саналыг зөвшөөрлөө! 💕`,
       });
   
-      // 8. Assign a random task to the new couple
+      // 11. Assign random task
       await assignRandomTaskToCouple(couple.id);
   
-      // 9. Refresh UI state
       alert('Та болзооны саналыг хүлээж авлаа!');
+  
       fetchActiveDate();
       fetchIncomingDateRequests();
       fetchLeaderboard();
@@ -936,30 +1018,33 @@ export default function LeaderboardPage() {
     if (!activeDate) return;
   
     try {
-      // 1️⃣ Fetch dating record (this is the real start time)
+      // 1️⃣ Find the active dating record
       const { data: datingRow, error: datingError } = await supabase
         .from('dating')
-        .select('started_at, user1_id, user2_id')
-        .or(
-          `user1_id.eq.${currentUser.id},user2_id.eq.${currentUser.id}`
-        )
+        .select('id, started_at, user1_id, user2_id')
+        .is('ended_at', null)
+        .or(`user1_id.eq.${currentUser.id},user2_id.eq.${currentUser.id}`)
         .single();
   
       if (datingError || !datingRow) {
         console.error('Error fetching dating record:', datingError);
+        alert('Идэвхтэй болзоо олдсонгүй.');
         return;
       }
   
-      const startedAtUTC = Date.parse(datingRow.started_at); // UTC
-      const nowUTC = Date.now(); // UTC
+      // 2️⃣ Check if 24 hours have passed
+      const startedAtUTC = Date.parse(datingRow.started_at);
+      const nowUTC = Date.now();
   
       const diffMs = nowUTC - startedAtUTC;
   
-      // 2️⃣ Enforce 24-hour rule
       if (diffMs < 24 * 60 * 60 * 1000) {
         const remainingMs = 24 * 60 * 60 * 1000 - diffMs;
   
-        const remainingHours = Math.floor(remainingMs / (1000 * 60 * 60));
+        const remainingHours = Math.floor(
+          remainingMs / (1000 * 60 * 60)
+        );
+  
         const remainingMinutes = Math.floor(
           (remainingMs % (1000 * 60 * 60)) / (1000 * 60)
         );
@@ -967,16 +1052,30 @@ export default function LeaderboardPage() {
         alert(
           `Та багадаа 24 цаг болзох ёстой. ${remainingHours} цаг ${remainingMinutes} минутын дараа дахин үзнэ үү.`
         );
+  
         return;
       }
   
-      // 3️⃣ End the date
+      // 3️⃣ Mark the dating relationship as ended
+      const { error: endDatingError } = await supabase
+        .from('dating')
+        .update({
+          ended_at: new Date().toISOString(),
+        })
+        .eq('id', datingRow.id);
+  
+      if (endDatingError) throw endDatingError;
+  
+      // 4️⃣ Mark the accepted request as ended
       await supabase
         .from('date_requests')
         .update({ status: 'ended' })
-        .eq('id', activeDate.id);
+        .eq('status', 'accepted')
+        .or(
+          `requester_id.eq.${datingRow.user1_id},requested_id.eq.${datingRow.user2_id}`
+        );
   
-      // 4️⃣ Fetch usernames
+      // 5️⃣ Fetch usernames
       const { data: requesterProfile } = await supabase
         .from('profiles')
         .select('username')
@@ -989,7 +1088,7 @@ export default function LeaderboardPage() {
         .eq('id', datingRow.user2_id)
         .single();
   
-      // 5️⃣ Public notification
+      // 6️⃣ Send notification
       await supabase.from('notifications').insert({
         user_id: null,
         message: `💔 ${requesterProfile.username} ба ${requestedProfile.username} болзоогоо дуусгалаа.`,
@@ -998,11 +1097,14 @@ export default function LeaderboardPage() {
       alert('Та болзоогоо дуусгалаа.');
   
       setActiveDate(null);
-      fetchLeaderboard();
+  
+      fetchActiveDate();
       fetchIncomingDateRequests();
+      fetchLeaderboard();
   
     } catch (err) {
       console.error('Error ending date:', err);
+      alert('Болзоог дуусгах үед алдаа гарлаа.');
     }
   }
   
