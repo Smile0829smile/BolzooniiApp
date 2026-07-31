@@ -5,7 +5,6 @@ import {
   Route,
   Navigate,
   useLocation,
-  useNavigate,
 } from 'react-router-dom';
 import { supabase } from './supabaseClient';
 
@@ -20,7 +19,6 @@ function ProtectedRoute({ user, children }) {
   const location = useLocation();
   const [hasAgreed, setHasAgreed] = useState(null);
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
 
   useEffect(() => {
     const checkAgreement = async () => {
