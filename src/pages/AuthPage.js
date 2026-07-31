@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 import { useNavigate } from 'react-router-dom';
 
@@ -40,27 +40,28 @@ export default function AuthPage() {
   };
 
   // Fetch state and country from user location
-  async function fetchUserLocationStateCountry() {
+  const fetchUserLocationStateCountry = useCallback(async () => {
     if (!navigator.geolocation) {
       alert('Your browser does not support geolocation.');
       return;
     }
-
+  
     setLocationLoading(true);
-
+  
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude, longitude } = position.coords;
-
+  
         try {
           const response = await fetch(
             `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`
           );
+  
           const data = await response.json();
-
+  
           const state = data.address.state || data.address.county || '';
           const country = data.address.country || '';
-
+  
           if (state || country) {
             const parts = [state, country].filter(Boolean);
             setLocation(parts.join(', '));
@@ -75,12 +76,12 @@ export default function AuthPage() {
           setLocationLoading(false);
         }
       },
-      (error) => {
+      () => {
         alert('Geolocation permission denied or unavailable.');
         setLocationLoading(false);
       }
     );
-  }
+  }, []);
 
   // Auto fetch location when switching to sign-up
   useEffect(() => {
@@ -92,8 +93,8 @@ export default function AuthPage() {
       setLocation('');
       setLocationLoading(false);
     }
-  }, [isSigningUp]);
-
+  }, [isSigningUp, location, fetchUserLocationStateCountry]);
+  
   const handleAuth = async () => {
     if (!email || !password) {
       alert('Please enter both email and password.');
