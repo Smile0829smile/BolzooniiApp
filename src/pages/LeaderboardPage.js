@@ -1172,7 +1172,7 @@ export default function LeaderboardPage() {
                   color: "black"
                 }}
               >
-                🎁 Bonus
+                🎁 Бонус
               </button>
             )}
 
@@ -1220,7 +1220,7 @@ export default function LeaderboardPage() {
               </>
             )}
             <button onClick={() => setActiveReportId(user.id)}>
-              🚩 Report
+              🚩 Репорт
             </button>
 
             {activeReportId === user.id && (
