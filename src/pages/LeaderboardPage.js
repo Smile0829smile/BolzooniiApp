@@ -66,7 +66,6 @@ export default function LeaderboardPage() {
   const [adminUsers, setAdminUsers] = useState([]);
 
 
-
   // after fetchCurrentUser, also fetch bans:
   useEffect(() => {
     if (currentUser?.id) {
@@ -1166,6 +1165,17 @@ export default function LeaderboardPage() {
             )}
             <button onClick={() => onViewProfile(user.id)}>👀 Profile үзэх</button>
 
+            {currentUser?.is_admin && !user.is_admin && (
+              <button
+                onClick={() => navigate(`/admin-bonus/${user.id}`)}
+                style={{
+                  color: "black"
+                }}
+              >
+                🎁 Bonus
+              </button>
+            )}
+
             {isTop3User && !isSelf && !user.is_admin && (
               isBanned
                 ? <button onClick={() => onUnban(user.id)} style={{ backgroundColor: 'green', color: 'white' }}>
@@ -1245,45 +1255,7 @@ export default function LeaderboardPage() {
     );
   }
 
-  async function handleVote(vote) {
-    if (!activeDate || !datingTask) {
-      alert('No active task or date.');
-      return;
-    }
-  
-    try {
-      const points = vote === 'nice' ? 8 : 1;
-  
-      // Step 1: Fetch current christma_points
-      const { data: profile, error: fetchError } = await supabase
-        .from('profiles')
-        .select('christma_points')
-        .eq('id', currentUser.id)
-        .single();
-  
-      if (fetchError) throw fetchError;
-  
-      const newPoints = (profile.christma_points || 0) + points;
-  
-      // Step 2: Update Christma points
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ christma_points: newPoints })
-        .eq('id', currentUser.id);
-  
-      if (updateError) throw updateError;
 
-      
-      alert(`You gave a "${vote}" vote and earned ${points} Christma points!`);
-  
-      // Optionally refresh data or fetch a new task
-  
-    } catch (err) {
-      console.error('Error handling vote:', err);
-      alert('Failed to record your vote.');
-    }
-  }  
-  
   return (
     <div style={{ maxWidth: 600, margin: 'auto', padding: 20 }}>
       <button onClick={() => navigate('/profile')} style={{ marginBottom: 20 }}>
@@ -1315,23 +1287,6 @@ export default function LeaderboardPage() {
           <h2 className="text-2xl font-bold text-pink-600 mb-2">💑 Хосын даалгавар! 💑</h2>
           <h3 className="text-2xl font-bold text-pink-600 mb-2">Ямар нэгэн юм болвол манай web асуудал хүлээхгүйг анхааруулья!</h3>
           <h3 className="text-xl text-gray-800">Та хоёрын хамтарсан даалгавар: <u>{datingTask}</u></h3>
-
-          {/* <h3 className="mt-4 text-lg text-gray-700">Хосынхоо даалгаврыг хэр сайн биелүүлснийг сонгоно уу 🙂</h3>
-
-          <div className="mt-4 flex justify-center space-x-4">
-            <button
-              onClick={() => handleVote('nice')}
-              className="px-6 py-2 bg-green-500 text-white font-bold rounded-lg hover:bg-green-600 transition"
-            >
-              👍 Nice
-            </button>
-            <button
-              onClick={() => handleVote('nah')}
-              className="px-6 py-2 bg-red-500 text-white font-bold rounded-lg hover:bg-red-600 transition"
-            >
-              👎 Nah
-            </button>
-          </div> */}
         </div>
       )}
 

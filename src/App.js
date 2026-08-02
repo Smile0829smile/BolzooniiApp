@@ -14,6 +14,8 @@ import LeaderboardPage from './pages/LeaderboardPage';
 import NotificationPage from './pages/NotificationPage';
 import ProfileViewPage from './pages/ProfileViewPage';
 import RulesAgreementPage from './pages/rulesAgreementPage'; // ✅ Import your new page
+import AdminBonusHistoryPage from "./pages/AdminBonusHistoryPage";
+import AdminBonusPage from './pages/AdminBonusPage';
 
 function ProtectedRoute({ user, children }) {
   const location = useLocation();
@@ -126,6 +128,22 @@ function AppWrapper() {
         element={
           <ProtectedRoute user={user}>
             <ProfileViewPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin-bonus-history/:userId"
+        element={
+          <ProtectedRoute user={user}>
+            <AdminBonusHistoryPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin-bonus/:userId"
+        element={
+          <ProtectedRoute user={user}>
+            <AdminBonusPage />
           </ProtectedRoute>
         }
       />

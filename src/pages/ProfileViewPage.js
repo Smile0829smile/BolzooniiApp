@@ -22,6 +22,8 @@ export default function ProfileViewPage() {
   const [expandedImage, setExpandedImage] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [bonusPoints, setBonusPoints] = useState(0);
 
   useEffect(() => {
     async function fetchProfile() {
@@ -34,6 +36,19 @@ export default function ProfileViewPage() {
       try {
         setLoading(true);
         setError(null);
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        
+        if (user) {
+          const { data: me } = await supabase
+            .from("profiles")
+            .select("is_admin")
+            .eq("id", user.id)
+            .single();
+        
+          setCurrentUser(me);
+        }
 
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
@@ -44,6 +59,20 @@ export default function ProfileViewPage() {
         if (profileError) throw profileError;
         if (!profileData) throw new Error('Profile not found');
         setProfile(profileData);
+
+        const { data: history, error: historyError } = await supabase
+          .from("admin_bonus_history")
+          .select("points")
+          .eq("user_id", id);
+
+        if (!historyError && history) {
+          const totalBonus = history.reduce(
+            (sum, row) => sum + row.points,
+            0
+          );
+
+          setBonusPoints(totalBonus);
+        }
 
         const { data: photoData, error: photoError } = await supabase
           .from('extra_photos')
@@ -70,6 +99,7 @@ export default function ProfileViewPage() {
 
   if (loading) return <p>Loading profile...</p>;
   if (error) return <p>Could not fetch profile: {error.message}</p>;
+
 
   return (
     <div style={{ maxWidth: '600px', margin: '0 auto', padding: '20px' }}>
@@ -124,6 +154,7 @@ export default function ProfileViewPage() {
       {!profile.is_admin && (
         <>
           <p>Christma оноо: {profile.christma_points}</p>
+          <p>🎁 Bonus: {bonusPoints}</p>
           <p>Likes: {profile.like_count}</p>
           <p>Болзоо: {profile.date_count}</p>
         </>
@@ -133,6 +164,18 @@ export default function ProfileViewPage() {
       <p>Хүйс: {profile.gender}</p>
       <p>Нас: {calculateAge(profile.birthdate)}</p>
       <p>Байршил: {profile.location || 'Байршил оруулаагүй'}</p>
+      <button
+        onClick={() => navigate(`/admin-bonus-history/${profile.id}`)}
+        style={{
+          marginTop: "15px",
+          marginBottom: "20px",
+          padding: "10px 15px",
+          borderRadius: "5px",
+          cursor: "pointer",
+        }}
+      >
+        📜 Бонус онооны түүх
+      </button>
 
       
 
