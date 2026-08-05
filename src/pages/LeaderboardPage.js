@@ -1312,33 +1312,10 @@ export default function LeaderboardPage() {
           </ul>
         </div>
       )}
-      
-      <h2>Ранк 🏆</h2>
 
       {loading && <p>Loading...</p>}
       {error && <p style={{ color: 'red' }}>Error: {error.message}</p>}
 
-      {!loading && !error && (
-        <>
-            {users.map((user, index) => (
-              <UserCard 
-                key={user.id}
-                user={user}
-                rank={index}
-                onLike={onLike}
-                onAskDate={onAskDate}
-                onViewProfile={handleViewProfile}
-                currentUser={currentUser}
-                top3UserIds={top3UserIds}
-                onBan={handleBanUser}
-                onUnban={handleUnbanUser}
-                isBanned={bannedUserIds.has(user.id)}
-                isSelf={user.id === currentUser.id || top3UserIds.includes(user.id)}
-                assignTask={assignTask}
-              />
-            ))}
-        </>
-      )}
       {adminUsers.length > 0 && (
         <>
           <hr />
@@ -1360,6 +1337,29 @@ export default function LeaderboardPage() {
               assignTask={() => {}}
             />
           ))}
+        </>
+      )}
+
+      <h2>Ранк 🏆</h2>
+      {!loading && !error && (
+        <>
+            {users.map((user, index) => (
+              <UserCard 
+                key={user.id}
+                user={user}
+                rank={index}
+                onLike={onLike}
+                onAskDate={onAskDate}
+                onViewProfile={handleViewProfile}
+                currentUser={currentUser}
+                top3UserIds={top3UserIds}
+                onBan={handleBanUser}
+                onUnban={handleUnbanUser}
+                isBanned={bannedUserIds.has(user.id)}
+                isSelf={user.id === currentUser.id || top3UserIds.includes(user.id)}
+                assignTask={assignTask}
+              />
+            ))}
         </>
       )}
       <hr></hr>
