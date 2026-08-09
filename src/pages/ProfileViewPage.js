@@ -159,11 +159,11 @@ export default function ProfileViewPage() {
           <p>Болзоо: {profile.date_count}</p>
         </>
       )}
-      <p>Email: {profile.email || 'Not provided'}</p>
+      {/* <p>Email: {profile.email || 'Not provided'}</p> */}
       <p>Утас: {profile.phone_number || 'Not provided'}</p>
       <p>Хүйс: {profile.gender}</p>
       <p>Нас: {calculateAge(profile.birthdate)}</p>
-      <p>Байршил: {profile.location || 'Байршил оруулаагүй'}</p>
+      {/* <p>Байршил: {profile.location || 'Байршил оруулаагүй'}</p> */}
       <button
         onClick={() => navigate(`/admin-bonus-history/${profile.id}`)}
         style={{
