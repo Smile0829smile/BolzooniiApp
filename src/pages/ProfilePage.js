@@ -24,6 +24,7 @@ export default function ProfilePage() {
     birthdate: '',
     profile_pic: '',
     christma_points: 0,
+    date_point: 0,
     gender: '',
     like_count: 0,
     date_count: 0,
@@ -80,6 +81,7 @@ export default function ProfilePage() {
           birthdate: data.birthdate || '',
           profile_pic: data.profile_pic || '',
           christma_points: data.christma_points || 0,
+          date_points: data.date_points || 0,
           gender: data.gender || '',
           like_count: data.like_count || 0,
           date_count: data.date_count || 0,
@@ -339,6 +341,8 @@ export default function ProfilePage() {
         <>
           <div><strong>Christma оноо:</strong> {profile.christma_points}</div>
           <br />
+          <div><strong>💕 Болзооны оноо:</strong> {profile.date_points || 0}</div>
+          <br />
           <div><strong>Likes:</strong> {profile.like_count}</div>
           <br />
           <div><strong>Болзоо:</strong> {profile.date_count}</div>
@@ -412,6 +416,7 @@ export default function ProfilePage() {
           </button>
         </div>
       )}
+      <div style={{ position: 'absolute', bottom: '12px', right: '16px', fontSize: '12px', color: '#999', opacity: 0.8,}}>Updated: August 09, 2026</div>
     </div>
   );
 }

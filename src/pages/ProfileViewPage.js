@@ -154,6 +154,7 @@ export default function ProfileViewPage() {
       {!profile.is_admin && (
         <>
           <p>Christma оноо: {profile.christma_points}</p>
+          <p>💕 Болзооны оноо: {profile.date_points || 0}</p>
           <p>🎁 Bonus: {bonusPoints}</p>
           <p>Likes: {profile.like_count}</p>
           <p>Болзоо: {profile.date_count}</p>

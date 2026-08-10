@@ -738,7 +738,7 @@ export default function LeaderboardPage() {
   
       const { data: requestedProfile, error: requestedProfileError } = await supabase
         .from('profiles')
-        .select('username, christma_points, gender')
+        .select('username, christma_points, date_points, gender')
         .eq('id', requestedId)
         .single();
   
@@ -778,7 +778,7 @@ export default function LeaderboardPage() {
       }
   
       const expiresAt = new Date(
-        Date.now() + 24 * 60 * 60 * 1000
+        Date.now() + 6 * 60 * 60 * 1000
       ).toISOString();
       
       // 📬 Insert new request
@@ -793,14 +793,21 @@ export default function LeaderboardPage() {
           }
         ]);
   
-      // 🎁 Update Christma points
-      const isRequesterTop3 = top3UserIds.includes(currentUser.id);
-      const pointsToAdd = isRequesterTop3 ? 10 : 5;
-      const updatedPoints = requestedProfile.christma_points + pointsToAdd;
-  
+      // 🎁 Update Christma points + dating points
+      const pointsToAdd = Math.floor(currentProfile.christma_points * 0.30);
+
+      const updatedPoints =
+        requestedProfile.christma_points + pointsToAdd;
+
+      const updatedDatePoints =
+        (requestedProfile.date_points || 0) + pointsToAdd;
+
       await supabase
         .from('profiles')
-        .update({ christma_points: updatedPoints })
+        .update({
+          christma_points: updatedPoints,
+          date_points: updatedDatePoints
+        })
         .eq('id', requestedId);
   
       // 🔔 Notification
@@ -879,7 +886,7 @@ export default function LeaderboardPage() {
       // 4. Fetch profiles
       const { data: profilesData, error: fetchError } = await supabase
         .from('profiles')
-        .select('id, date_count, christma_points')
+        .select('id, date_count, christma_points, date_points')
         .in('id', [currentUser.id, dateData.requester_id]);
   
       if (fetchError) throw fetchError;
@@ -948,15 +955,23 @@ export default function LeaderboardPage() {
         .neq('id', requestId)
         .or(cancelFilter);
   
-      // 9. Give requester 5 Christma Points
+      // 9. Give requester Christma Points
+      const pointsToAdd =
+    Math.floor((currentUserProfile?.christma_points || 0) * 0.10) + 10;
+
       const updatedRequesterPoints =
-        (requesterProfile?.christma_points || 0) + 5;
-  
+        (requesterProfile?.christma_points || 0) + pointsToAdd;
+
+      const updatedRequesterDatePoints =
+        (requesterProfile?.date_points || 0) + pointsToAdd;
+
       await supabase
         .from('profiles')
-        .update({ christma_points: updatedRequesterPoints })
+        .update({
+          christma_points: updatedRequesterPoints,
+          date_points: updatedRequesterDatePoints
+        })
         .eq('id', dateData.requester_id);
-  
       // 10. Notification
       await supabase.from('notifications').insert({
         user_id: null,
@@ -1031,14 +1046,14 @@ export default function LeaderboardPage() {
         return;
       }
   
-      // 2️⃣ Check if 24 hours have passed
+      // 2️⃣ Check if 6 hours have passed
       const startedAtUTC = Date.parse(datingRow.started_at);
       const nowUTC = Date.now();
   
       const diffMs = nowUTC - startedAtUTC;
   
-      if (diffMs < 24 * 60 * 60 * 1000) {
-        const remainingMs = 24 * 60 * 60 * 1000 - diffMs;
+      if (diffMs < 6 * 60 * 60 * 1000) {
+        const remainingMs = 6 * 60 * 60 * 1000 - diffMs;
   
         const remainingHours = Math.floor(
           remainingMs / (1000 * 60 * 60)
@@ -1049,7 +1064,7 @@ export default function LeaderboardPage() {
         );
   
         alert(
-          `Та багадаа 24 цаг болзох ёстой. ${remainingHours} цаг ${remainingMinutes} минутын дараа дахин үзнэ үү.`
+          `Та багадаа 6 цаг болзох ёстой. ${remainingHours} цаг ${remainingMinutes} минутын дараа дахин үзнэ үү.`
         );
   
         return;
