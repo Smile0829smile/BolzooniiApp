@@ -428,13 +428,19 @@ export default function ProfileEdit() {
           })
           .eq('id', profile.id);
 
-      if (updateError) {
-        throw updateError;
-      }
-
-      alert(
-        'Profile амжилттай хадгалагдлаа.'
-      );
+          if (updateError) {
+            throw updateError;
+          }
+          
+          alert(
+            'Profile амжилттай хадгалагдлаа.'
+          );
+          
+          // Save хийсний дараа тухайн хэрэглэгчийн ProfileView руу буцна
+          navigate(`/profile/${profile.id}`, {
+            replace: true,
+          }); 
+          
     } catch (err) {
       console.error(
         'Save error:',
