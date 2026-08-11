@@ -437,10 +437,10 @@ export default function ProfileEdit() {
           );
           
           // Save хийсний дараа тухайн хэрэглэгчийн ProfileView руу буцна
-          navigate(`/profile/${profile.id}`, {
+          navigate(`/profile-view/${profile.id}`, {
             replace: true,
           }); 
-          
+
     } catch (err) {
       console.error(
         'Save error:',
