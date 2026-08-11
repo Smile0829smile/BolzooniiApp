@@ -16,6 +16,13 @@ import ProfileViewPage from './pages/ProfileViewPage';
 import RulesAgreementPage from './pages/rulesAgreementPage'; // ✅ Import your new page
 import AdminBonusHistoryPage from "./pages/AdminBonusHistoryPage";
 import AdminBonusPage from './pages/AdminBonusPage';
+import CreatorReportsPage from './pages/CreatorReportsPage';
+import CreatorDatingRequestsPage from './pages/CreatorDatingRequestsPage';
+import CreatorActiveDatingPage from './pages/CreatorActiveDatingPage';
+import CreatorTasksPage from './pages/CreatorTasksPage';
+import ProfileEdit from './pages/ProfileEdit';
+import WarningPage from './pages/WarningPage';
+import DeleteUser from './pages/DeleteUser';
 
 function ProtectedRoute({ user, children }) {
   const location = useLocation();
@@ -144,6 +151,42 @@ function AppWrapper() {
         element={
           <ProtectedRoute user={user}>
             <AdminBonusPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/creator-reports"
+        element={<CreatorReportsPage />}
+      />
+      <Route
+        path="/creator-dating-requests"
+        element={<CreatorDatingRequestsPage />}
+      />
+      <Route
+        path="/creator-active-dating"
+        element={<CreatorActiveDatingPage />}
+      />
+      <Route
+        path="/creator-tasks"
+        element={<CreatorTasksPage />}
+      />
+      <Route
+        path="/profile-edit/:id"
+        element={<ProfileEdit />}
+      />
+      <Route
+        path="/warning/:id"
+        element={
+          <ProtectedRoute user={user}>
+            <WarningPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/delete-user/:id"
+        element={
+          <ProtectedRoute user={user}>
+            <DeleteUser />
           </ProtectedRoute>
         }
       />

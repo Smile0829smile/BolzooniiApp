@@ -130,24 +130,90 @@ export default function ProfilePage() {
   };
 
   const uploadAvatar = async (event) => {
-    if (isBanned) return alert('Бандуулсан хэрэглэгч зурагаа сольж болохгүй.');
+    if (isBanned) {
+      return alert(
+        'Бандуулсан хэрэглэгч зурагаа сольж болохгүй.'
+      );
+    }
+  
     const file = event.target.files[0];
+  
     if (!file) return;
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${Date.now()}.${fileExt}`;
-    const filePath = `avatars/${fileName}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from('avatars')
-      .upload(filePath, file, { cacheControl: '3600', upsert: false });
-
-    if (uploadError) return alert('Error uploading avatar');
-
-    const { data: publicData } = await supabase.storage
-      .from('avatars')
-      .getPublicUrl(filePath);
-    setProfile((prev) => ({ ...prev, profile_pic: publicData.publicUrl }));
-    setPreviewUrl(publicData.publicUrl);
+  
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+  
+    if (!user) {
+      return alert('Not logged in');
+    }
+  
+    const fileExt =
+      file.name.split('.').pop();
+  
+    const fileName =
+      `${Date.now()}.${fileExt}`;
+  
+    // NEW STRUCTURE
+    const filePath =
+      `avatars/${user.id}/${fileName}`;
+  
+    const { error: uploadError } =
+      await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+  
+    if (uploadError) {
+      console.error(uploadError);
+  
+      return alert(
+        'Error uploading avatar'
+      );
+    }
+  
+    const { data: publicData } =
+      supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+  
+    const newUrl =
+      publicData.publicUrl;
+  
+    // Update DB immediately
+    const { error: updateError } =
+      await supabase
+        .from('profiles')
+        .update({
+          profile_pic: newUrl,
+          updated_at: new Date(),
+        })
+        .eq('id', user.id);
+  
+    if (updateError) {
+      console.error(updateError);
+  
+      await supabase.storage
+        .from('avatars')
+        .remove([filePath]);
+  
+      return alert(
+        'Profile зураг хадгалахад алдаа гарлаа.'
+      );
+    }
+  
+    setProfile((prev) => ({
+      ...prev,
+      profile_pic: newUrl,
+    }));
+  
+    setPreviewUrl(newUrl);
+  
+    alert(
+      'Profile зураг амжилттай шинэчлэгдлээ.'
+    );
   };
 
   const uploadExtraPhoto = async (event) => {
@@ -416,7 +482,7 @@ export default function ProfilePage() {
           </button>
         </div>
       )}
-      <div style={{ position: 'absolute', bottom: '12px', right: '16px', fontSize: '12px', color: '#999', opacity: 0.8,}}>Updated: August 09, 2026</div>
+      <div style={{ position: 'absolute', bottom: '12px', right: '16px', fontSize: '12px', color: '#999', opacity: 0.8,}}>Updated: August 11, 2026</div>
     </div>
   );
 }
