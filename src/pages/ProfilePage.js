@@ -416,6 +416,31 @@ export default function ProfilePage() {
         </>
       )}
       <hr />
+      <button
+        onClick={() => navigate('/rules-agreement')}
+      >
+        📜 Хэрэглэгчийн гэрээ
+      </button>
+      <br/><br/>
+      <button
+        onClick={async () => {
+          const {
+            data: { user },
+          } = await supabase.auth.getUser();
+
+          if (user) {
+            navigate(
+              `/date-history/${user.id}`
+            );
+          }
+        }}
+        style={{
+          marginRight: '8px',
+        }}
+      >
+        💕 Миний болзооны түүх
+      </button>
+      <br/><br/>
       <button onClick={() => navigate('/leaderboard')}>🏆 Leaderboard ийг харах</button>
       <br /><br />
       <button onClick={async () => {
@@ -482,7 +507,7 @@ export default function ProfilePage() {
           </button>
         </div>
       )}
-      <div style={{ position: 'absolute', bottom: '12px', right: '16px', fontSize: '12px', color: '#999', opacity: 0.8,}}>Updated: August 11, 2026:Part2</div>
+      <div style={{ position: 'absolute', bottom: '12px', right: '16px', fontSize: '12px', color: '#999', opacity: 0.8,}}>Updated: August 11, 2026:Part3</div>
     </div>
   );
 }

@@ -1,9 +1,8 @@
-//The assign tasks are around 110th row!!!!
+//The assign tasks are around 210th row!!!!
 import { useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { useNavigate } from 'react-router-dom';
 import React from 'react';
-
 
 function DateRequestCard({ request, onAccept, onReject }) {
   const { id, requester, status } = request;
@@ -77,7 +76,6 @@ function DateRequestCard({ request, onAccept, onReject }) {
   );
 }
 
-
 export default function LeaderboardPage() {
   const [users, setUsers] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
@@ -119,22 +117,15 @@ export default function LeaderboardPage() {
     setAskedUserIds,
   ] = useState([]);
 
-  // ADMIN ACCOUNTS
   const [
     adminUsers,
     setAdminUsers,
   ] = useState([]);
 
-  // CREATOR ACCOUNTS
   const [
     creatorUsers,
     setCreatorUsers,
   ] = useState([]);
-
-
-  // =====================================================
-  // FETCH BANS
-  // =====================================================
 
   useEffect(() => {
     if (currentUser?.id) {
@@ -142,19 +133,9 @@ export default function LeaderboardPage() {
     }
   }, [currentUser]);
 
-
-  // =====================================================
-  // CURRENT USER
-  // =====================================================
-
   useEffect(() => {
     fetchCurrentUser();
   }, []);
-
-
-  // =====================================================
-  // LOAD LEADERBOARD
-  // =====================================================
 
   useEffect(() => {
     if (currentUser?.id) {
@@ -162,124 +143,177 @@ export default function LeaderboardPage() {
       fetchIncomingDateRequests();
       fetchActiveDate();
       fetchBans();
+      fetchDatingTask();
     }
   }, [currentUser]);
-
 
   // =====================================================
   // RANDOM COUPLE TASK
   // =====================================================
 
   async function assignRandomTaskToCouple(coupleId) {
-    const coupleRes = await supabase
-      .from('dating')
-      .select('user1_id, user2_id')
-      .eq('id', coupleId)
-      .single();
+    try {
+      const {
+        data: couple,
+        error: coupleError,
+      } = await supabase
+        .from('dating')
+        .select('user1_id, user2_id')
+        .eq('id', coupleId)
+        .single();
 
-    if (coupleRes.error) {
-      console.error(
-        'Error fetching couple:',
-        coupleRes.error
-      );
-      return;
-    }
+      if (coupleError) {
+        throw coupleError;
+      }
 
-    const {
-      user1_id,
-      user2_id,
-    } = coupleRes.data;
+      if (!couple) {
+        throw new Error(
+          'Couple олдсонгүй.'
+        );
+      }
 
-
-    const profileRes = await supabase
-      .from('profiles')
-      .select('id, username')
-      .in('id', [
+      const {
         user1_id,
         user2_id,
-      ]);
+      } = couple;
 
-    if (profileRes.error) {
-      console.error(
-        'Error fetching usernames:',
-        profileRes.error
-      );
-      return;
-    }
+      const {
+        data: profiles,
+        error: profileError,
+      } = await supabase
+        .from('profiles')
+        .select('id, username, nickname')
+        .in('id', [
+          user1_id,
+          user2_id,
+        ]);
 
-    const usernames =
-      profileRes.data.map(
-        (profile) =>
-          profile.username
-      );
+      if (profileError) {
+        throw profileError;
+      }
 
+      const user1 =
+        profiles?.find(
+          (p) => p.id === user1_id
+        );
 
-    const tasks = [
-      "Тасралтгүй 2 цаг видео дуудлага хийх. Ярих хугацаандаа зураг зурах. Тэгээд хамгийн гунигтай юм уу хамгийн хөгжилтэй уншсан уран зохиолуудаа ярих.",
-      "Өөрсдөө болзоогоо төлөвлөөд YouTube дээр влог болгож оруулах. Тэгээд групп дээр линкээ өгөх.",
-      "Хамт кино ямар ч хамаагүй байдлаар үзээд, киноны хамгийн гоё хэсэг юу байсныг ярилцаж, киногоо үнэлэх. Зураг дарвал групп дээр шэйр хийх.",
-      "Нэгэндээ тоглодог 2 онлайн, 1 оффлайн тоглоомоо хуваалцах. Тэгээд нэгийг нь сонгоод нэгнийхээ рекордыг эвдэх эсвэл хамт тоглох.",
-      "Дуртай 3 дуугаа нэгэнтэйгээ хуваалцаад, нэг дуугаа сонгон хамт дуулаад, тэрийгээ групп дээр шэйр хийх.",
-      "30 минутын болзооны сорил. 5 минутанд өдөр тутамдаа юу хийдгээ, 10 минутанд хамгийн их мөрөөддөг зүйлээ, 15 минутанд чөлөөт цагаа хэрхэн өнгөрөөдгөө ярих.",
-      "Нэгэнтэйгээ 1 цаг ярингаа нэгнийхээ хувцаснуудыг хараад ямар хувцас өмсөхийг нь зааж өгөх. Тэгээд зургаа даруулаад групп дээр шэйр хийх.",
-      "30 минутын турш нөгөө хүнийхээ энгийн хүсэлт, саналд боломжтой бол “Тийм” гэж хариулах.",
-      "20 асуулт бэлдэж, бие биенээ илүү сайн таних.",
-      "Хамгийн их ашигладаг 10 эможиныхоо утгыг тайлбарлах. Нэгнийхээ нэрийг эможигоор бичээд IG, Messenger note дээрээ байршуулах",
-      "Хамгийн дуртай 10 зургийнхаа түүхийг ярьж өгөх.",
-      "Адилхан позтой толины сельфи солилцож, хосынхоо зургийг 24 цаг сторидоо хийх.",
-      "Өгсөн сэдвийн дагуу хамтран дууны жагсаалт бүтээх.",
-      "3 минут юу ч ярихгүйгээр бие бие рүүгээ харж, харцаа салгалгүй видео дуудлага хийх. Дараа нь ямар санагдсанаа ярилцах.",
-      "Бие биедээ зориулж 5 зураг сонгоод, яагаад тэр зураг тухайн хүнийг санагдуулж байгааг тайлбарлах. Тэгээд хамгийн гоё санагдсан нэг зургаа сонгоод 24 цаг сторидоо хийх.",
-    ];
+      const user2 =
+        profiles?.find(
+          (p) => p.id === user2_id
+        );
 
-    const randomTask =
-      tasks[
-        Math.floor(
-          Math.random() *
-            tasks.length
-        )
+      const tasks = [
+        "Тасралтгүй 2 цаг видео дуудлага хийх. Ярих хугацаандаа зураг зурах. Тэгээд хамгийн гунигтай юм уу хамгийн хөгжилтэй уншсан уран зохиолуудаа ярих.",
+        "Өөрсдөө болзоогоо төлөвлөөд YouTube дээр влог болгож оруулах. Тэгээд групп дээр линкээ өгөх.",
+        "Хамт кино ямар ч хамаагүй байдлаар үзээд, киноны хамгийн гоё хэсэг юу байсныг ярилцаж, киногоо үнэлэх. Зураг дарвал групп дээр шэйр хийх.",
+        "Нэгэндээ тоглодог 2 онлайн, 1 оффлайн тоглоомоо хуваалцах. Тэгээд нэгийг нь сонгоод нэгнийхээ рекордыг эвдэх эсвэл хамт тоглох.",
+        "Дуртай 3 дуугаа нэгэнтэйгээ хуваалцаад, нэг дуугаа сонгон хамт дуулаад, тэрийгээ групп дээр шэйр хийх.",
+        "30 минутын болзооны сорил. 5 минутанд өдөр тутамдаа юу хийдгээ, 10 минутанд хамгийн их мөрөөддөг зүйлээ, 15 минутанд чөлөөт цагаа хэрхэн өнгөрөөдгөө ярих.",
+        "Нэгэнтэйгээ 1 цаг ярингаа нэгнийхээ хувцаснуудыг хараад ямар хувцас өмсөхийг нь зааж өгөх. Тэгээд зургаа даруулаад групп дээр шэйр хийх.",
+        "30 минутын турш нөгөө хүнийхээ энгийн хүсэлт, саналд боломжтой бол “Тийм” гэж хариулах.",
+        "20 асуулт бэлдэж, бие биенээ илүү сайн таних.",
+        "Хамгийн их ашигладаг 10 эможиныхоо утгыг тайлбарлах.",
+        "Хамгийн дуртай 10 зургийнхаа түүхийг ярьж өгөх.",
+        "Адилхан позтой толины сельфи солилцож, хосынхоо зургийг 24 цаг сторидоо хийх.",
+        "Өгсөн сэдвийн дагуу хамтран дууны жагсаалт бүтээх.",
+        "3 минут юу ч ярихгүйгээр бие бие рүүгээ харж, харцаа салгалгүй видео дуудлага хийх. Дараа нь ямар санагдсанаа ярилцах.",
+        "Бие биедээ зориулж 5 зураг сонгоод, яагаад тэр зураг тухайн хүнийг санагдуулж байгааг тайлбарлах. Тэгээд хамгийн гоё санагдсан нэг зургаа сонгоод 24 цаг сторидоо хийх.",
       ];
 
+      const randomTask =
+        tasks[
+          Math.floor(
+            Math.random() *
+            tasks.length
+          )
+        ];
 
-    const { error } =
-      await supabase.rpc(
-        'assign_couple_task',
-        {
-          u1: user1_id,
-          u2: user2_id,
-          task: randomTask,
-        }
+      const {
+        error: oldTaskDeleteError,
+      } = await supabase
+        .from('couple_task')
+        .delete()
+        .in(
+          'assignee_id',
+          [
+            user1_id,
+            user2_id,
+          ]
+        );
+
+      if (oldTaskDeleteError) {
+        throw oldTaskDeleteError;
+      }
+
+      const {
+        error: taskError,
+      } = await supabase
+        .from('couple_task')
+        .insert([
+          {
+            assignee_id:
+              user1_id,
+
+            task_text:
+              randomTask,
+          },
+
+          {
+            assignee_id:
+              user2_id,
+
+            task_text:
+              randomTask,
+          },
+        ]);
+
+      if (taskError) {
+        throw taskError;
+      }
+
+      console.log(
+        '✅ Couple task created:',
+        randomTask
       );
 
-    if (error) {
-      console.error(
-        'Error assigning couple task:',
-        error
-      );
-    }
+      const name1 =
+        user1?.nickname ||
+        user1?.username ||
+        'User 1';
 
+      const name2 =
+        user2?.nickname ||
+        user2?.username ||
+        'User 2';
 
-    const message =
-      `Шинэ хосийн даалгавар ${usernames[0]}, ${usernames[1]} хоёрт оногдлоо! 💑 Даалгавар: "${randomTask}"`;
-
-    const notifRes =
-      await supabase
+      const {
+        error: notificationError,
+      } = await supabase
         .from('notifications')
         .insert({
           user_id: null,
-          message,
+
+          message:
+            `💑 ${name1}, ${name2} хоёрт шинэ хосын даалгавар ирлээ! Даалгавар: "${randomTask}"`,
         });
 
-    if (notifRes.error) {
+      if (notificationError) {
+        console.error(
+          'Couple task notification error:',
+          notificationError
+        );
+      }
+
+      return randomTask;
+    } catch (err) {
       console.error(
-        'Error creating notification:',
-        notifRes.error
+        'assignRandomTaskToCouple error:',
+        err
       );
-    } else {
-      console.log(message);
+
+      throw err;
     }
   }
-
 
   // =====================================================
   // ASSIGN SINGLE TASK
@@ -338,7 +372,6 @@ export default function LeaderboardPage() {
     }
   };
 
-
   // =====================================================
   // REPORT
   // =====================================================
@@ -394,7 +427,6 @@ export default function LeaderboardPage() {
       }
     };
 
-
   // =====================================================
   // MY TASK
   // =====================================================
@@ -441,7 +473,6 @@ export default function LeaderboardPage() {
     }
   }, [currentUser?.id]);
 
-
   // =====================================================
   // TOP 3
   // =====================================================
@@ -485,11 +516,9 @@ export default function LeaderboardPage() {
     }
   }
 
-
   useEffect(() => {
     fetchTop3UserIds();
   }, []);
-
 
   // =====================================================
   // FETCH BANS
@@ -548,7 +577,6 @@ export default function LeaderboardPage() {
     );
   }
 
-
   // =====================================================
   // BAN
   // =====================================================
@@ -564,9 +592,7 @@ export default function LeaderboardPage() {
         currentUser.id
       );
 
-    if (
-      isCurrentUserTop3
-    ) {
+    if (isCurrentUserTop3) {
       const {
         data:
           existingBans,
@@ -598,7 +624,6 @@ export default function LeaderboardPage() {
       }
     }
 
-
     const dating =
       await isUserDating(
         bannedUserId
@@ -610,7 +635,6 @@ export default function LeaderboardPage() {
       );
       return;
     }
-
 
     const {
       data:
@@ -637,7 +661,6 @@ export default function LeaderboardPage() {
 
       return;
     }
-
 
     const {
       error: insertError,
@@ -666,6 +689,31 @@ export default function LeaderboardPage() {
       return;
     }
 
+    // =====================================================
+    // CANCEL ALL PENDING DATE REQUESTS FOR BANNED USER
+    // =====================================================
+
+    const {
+      error: cancelDateRequestsError,
+    } = await supabase
+      .from('date_requests')
+      .update({
+        status: 'cancelled',
+      })
+      .eq(
+        'status',
+        'pending'
+      )
+      .or(
+        `requester_id.eq.${bannedUserId},requested_id.eq.${bannedUserId}`
+      );
+
+    if (cancelDateRequestsError) {
+      console.error(
+        'Error cancelling banned user date requests:',
+        cancelDateRequestsError
+      );
+    }
 
     await supabase
       .from('notifications')
@@ -683,7 +731,6 @@ export default function LeaderboardPage() {
     await fetchBans();
     fetchLeaderboard();
   }
-
 
   // =====================================================
   // UNBAN
@@ -728,7 +775,6 @@ export default function LeaderboardPage() {
       return;
     }
 
-
     const {
       data:
         unbannedProfile,
@@ -753,7 +799,6 @@ export default function LeaderboardPage() {
     await fetchBans();
     fetchLeaderboard();
   }
-
 
   // =====================================================
   // DATING CHECK
@@ -789,7 +834,6 @@ export default function LeaderboardPage() {
 
     return !!data;
   }
-
 
   // =====================================================
   // CURRENT USER
@@ -839,7 +883,6 @@ export default function LeaderboardPage() {
     }
   }
 
-
   // =====================================================
   // LEADERBOARD
   // =====================================================
@@ -847,10 +890,6 @@ export default function LeaderboardPage() {
   async function fetchLeaderboard() {
     try {
       setLoading(true);
-
-      // ===============================================
-      // NORMAL USERS
-      // ===============================================
 
       const {
         data:
@@ -881,12 +920,6 @@ export default function LeaderboardPage() {
         throw normalError;
       }
 
-
-      // ===============================================
-      // ADMIN USERS
-      // Creator is removed from Admin section
-      // ===============================================
-
       const {
         data:
           adminAccounts,
@@ -910,11 +943,6 @@ export default function LeaderboardPage() {
         throw adminError;
       }
 
-
-      // ===============================================
-      // CREATOR USERS
-      // ===============================================
-
       const {
         data:
           creators,
@@ -933,7 +961,6 @@ export default function LeaderboardPage() {
       if (creatorError) {
         throw creatorError;
       }
-
 
       setUsers(
         normalUsers || []
@@ -965,7 +992,6 @@ export default function LeaderboardPage() {
       setLoading(false);
     }
   }
-
 
   // =====================================================
   // DATE REQUESTS
@@ -1040,7 +1066,6 @@ export default function LeaderboardPage() {
         }
       }
 
-
       const requesterIds =
         requests
           .filter(
@@ -1052,7 +1077,6 @@ export default function LeaderboardPage() {
             (r) =>
               r.requester_id
           );
-
 
       let requestersProfiles =
         [];
@@ -1077,7 +1101,6 @@ export default function LeaderboardPage() {
         requestersProfiles =
           profilesData || [];
       }
-
 
       const combined =
         requests
@@ -1107,7 +1130,6 @@ export default function LeaderboardPage() {
       );
     }
   }
-
 
   // =====================================================
   // ACTIVE DATE
@@ -1163,127 +1185,73 @@ export default function LeaderboardPage() {
     }
   }
 
-
   // =====================================================
   // COUPLE TASK
   // =====================================================
 
-  useEffect(() => {
-    if (
-      !currentUser?.id ||
-      !activeDate?.id
-    ) {
-      setDatingTask(
-        null
-      );
-
-      return;
+  async function fetchDatingTask() {
+    if (!currentUser?.id) {
+      setDatingTask(null);
+      return null;
     }
 
-
-    async function getPartnerId() {
+    try {
       const {
         data,
         error,
       } = await supabase
-        .from('dating')
+        .from('couple_task')
         .select(
-          'user1_id, user2_id'
+          'id, assignee_id, task_text, assigned_at'
         )
-        .or(
-          `user1_id.eq.${currentUser.id},user2_id.eq.${currentUser.id}`
-        )
-        .single();
-
-      if (
-        error &&
-        error.code !==
-          'PGRST116'
-      ) {
-        console.error(
-          'Error fetching dating partner:',
-          error
-        );
-
-        return null;
-      }
-
-      if (!data) {
-        console.log(
-          'No dating row found'
-        );
-
-        return null;
-      }
-
-      const partnerId =
-        data.user1_id ===
-        currentUser.id
-          ? data.user2_id
-          : data.user1_id;
-
-      return partnerId;
-    }
-
-
-    async function fetchDatingTask() {
-      const partnerId =
-        await getPartnerId();
-
-      if (!partnerId) {
-        setDatingTask(
-          null
-        );
-        return;
-      }
-
-      const {
-        data,
-        error,
-      } = await supabase
-        .from(
-          'couple_task'
-        )
-        .select('*')
-        .in(
+        .eq(
           'assignee_id',
-          [
-            currentUser.id,
-            partnerId,
-          ]
+          currentUser.id
         )
         .order(
           'assigned_at',
           {
-            ascending:
-              false,
+            ascending: false,
           }
         )
         .limit(1)
-        .single();
+        .maybeSingle();
 
-      if (
-        error &&
-        error.code !==
-          'PGRST116'
-      ) {
-        console.error(
-          'Error fetching dating task:',
-          error
-        );
+      if (error) {
+        throw error;
+      }
 
-        setDatingTask(
-          null
-        );
-      } else if (data) {
+      if (data) {
         setDatingTask(
           data.task_text
         );
-      } else {
-        setDatingTask(
-          null
-        );
+
+        return data;
       }
+
+      setDatingTask(null);
+      return null;
+    } catch (err) {
+      console.error(
+        'Fetch couple task error:',
+        err
+      );
+
+      setDatingTask(null);
+
+      return null;
+    }
+  }
+
+  useEffect(() => {
+    if (!currentUser?.id) {
+      setDatingTask(null);
+      return;
+    }
+
+    if (!activeDate?.id) {
+      setDatingTask(null);
+      return;
     }
 
     fetchDatingTask();
@@ -1291,7 +1259,6 @@ export default function LeaderboardPage() {
     currentUser?.id,
     activeDate?.id,
   ]);
-
 
   // =====================================================
   // LIKE
@@ -1357,7 +1324,6 @@ export default function LeaderboardPage() {
         return;
       }
 
-
       const today =
         new Date()
           .toISOString()
@@ -1401,7 +1367,6 @@ export default function LeaderboardPage() {
         return;
       }
 
-
       const {
         data:
           likedUser,
@@ -1421,7 +1386,6 @@ export default function LeaderboardPage() {
       if (userError) {
         throw userError;
       }
-
 
       const now =
         new Date();
@@ -1448,7 +1412,6 @@ export default function LeaderboardPage() {
       if (insertError) {
         throw insertError;
       }
-
 
       const updatedPoints =
         likedUser.christma_points +
@@ -1478,7 +1441,6 @@ export default function LeaderboardPage() {
       if (updateError) {
         throw updateError;
       }
-
 
       const {
         error:
@@ -1515,7 +1477,6 @@ export default function LeaderboardPage() {
     }
   }
 
-
   // =====================================================
   // ASK DATE
   // =====================================================
@@ -1538,7 +1499,6 @@ export default function LeaderboardPage() {
 
       return;
     }
-
 
     try {
       const {
@@ -1589,7 +1549,6 @@ export default function LeaderboardPage() {
         return;
       }
 
-
       const {
         data:
           todayRequestsCount,
@@ -1618,7 +1577,6 @@ export default function LeaderboardPage() {
         return;
       }
 
-
       const {
         data:
           currentProfile,
@@ -1640,7 +1598,6 @@ export default function LeaderboardPage() {
       ) {
         throw currentProfileError;
       }
-
 
       const {
         data:
@@ -1664,7 +1621,6 @@ export default function LeaderboardPage() {
         throw requestedProfileError;
       }
 
-
       if (
         currentProfile.gender ===
         requestedProfile.gender
@@ -1676,7 +1632,6 @@ export default function LeaderboardPage() {
         return;
       }
 
-
       if (
         currentProfile.christma_points <
         requestedProfile.christma_points
@@ -1687,7 +1642,6 @@ export default function LeaderboardPage() {
 
         return;
       }
-
 
       const {
         data:
@@ -1732,7 +1686,6 @@ export default function LeaderboardPage() {
         return;
       }
 
-
       const expiresAt =
         new Date(
           Date.now() +
@@ -1741,7 +1694,6 @@ export default function LeaderboardPage() {
               60 *
               1000
         ).toISOString();
-
 
       await supabase
         .from(
@@ -1762,7 +1714,6 @@ export default function LeaderboardPage() {
               expiresAt,
           },
         ]);
-
 
       const pointsToAdd =
         Math.floor(
@@ -1792,7 +1743,6 @@ export default function LeaderboardPage() {
           'id',
           requestedId
         );
-
 
       await supabase
         .from(
@@ -1830,7 +1780,6 @@ export default function LeaderboardPage() {
     }
   }
 
-
   // =====================================================
   // ACCEPT DATE
   // =====================================================
@@ -1844,110 +1793,150 @@ export default function LeaderboardPage() {
       alert(
         'Та яг одоо болзож байна. Энэ болзоогоо дуусгаад дараагийнхийг эхлүүлнэ үү'
       );
-
+  
       return;
     }
-
-
+  
     try {
       const {
-        data:
-          dateData,
-        error:
-          dateError,
+        data: dateData,
+        error: dateError,
       } = await supabase
-        .from(
-          'date_requests'
-        )
+        .from('date_requests')
         .select('*')
-        .eq(
-          'id',
-          requestId
-        )
+        .eq('id', requestId)
         .single();
-
+  
       if (dateError) {
         throw dateError;
       }
-
-
+  
+      // =====================================================
+      // BAN CHECK BEFORE ACCEPTING
+      // =====================================================
+  
+      const {
+        data: bannedDateUsers,
+        error: bannedDateUsersError,
+      } = await supabase
+        .from('bans')
+        .select('banned_user_id')
+        .in('banned_user_id', [
+          currentUser.id,
+          dateData.requester_id,
+        ]);
+  
+      if (bannedDateUsersError) {
+        throw bannedDateUsersError;
+      }
+  
+      if (
+        bannedDateUsers &&
+        bannedDateUsers.length > 0
+      ) {
+        const {
+          error: cancelError,
+        } = await supabase
+          .from('date_requests')
+          .update({
+            status: 'cancelled',
+          })
+          .eq('id', requestId);
+  
+        if (cancelError) {
+          throw cancelError;
+        }
+  
+        await fetchIncomingDateRequests();
+  
+        alert(
+          'Энэ болзооны санал хүчингүй болсон байна. Хэрэглэгчдийн нэг нь бандуулсан байна.'
+        );
+  
+        return;
+      }
+  
+      // =====================================================
+      // MAKE SURE REQUEST IS STILL PENDING
+      // =====================================================
+  
+      if (dateData.status !== 'pending') {
+        await fetchIncomingDateRequests();
+  
+        alert(
+          'Энэ болзооны санал идэвхгүй болсон байна.'
+        );
+  
+        return;
+      }
+  
+      // =====================================================
+      // CHECK EXISTING DATING
+      // =====================================================
+  
       const datingFilter =
         `user1_id.eq.${currentUser.id},` +
         `user2_id.eq.${currentUser.id},` +
         `user1_id.eq.${dateData.requester_id},` +
         `user2_id.eq.${dateData.requester_id}`;
-
+  
       const {
-        data:
-          existingDating,
-        error:
-          datingCheckError,
+        data: existingDating,
+        error: datingCheckError,
       } = await supabase
         .from('dating')
         .select('id')
         .or(datingFilter);
-
-      if (
-        datingCheckError
-      ) {
+  
+      if (datingCheckError) {
         throw datingCheckError;
       }
-
-
+  
       if (
         existingDating &&
-        existingDating.length >
-          0
+        existingDating.length > 0
       ) {
         alert(
           'Энэ хэрэглэгч эсвэл та аль хэдийн болзож байна.'
         );
-
+  
         await supabase
-          .from(
-            'date_requests'
-          )
+          .from('date_requests')
           .update({
-            status:
-              'cancelled',
+            status: 'cancelled',
           })
-          .eq(
-            'id',
-            requestId
-          );
-
+          .eq('id', requestId);
+  
         fetchIncomingDateRequests();
-
+  
         return;
       }
-
-
+  
+      // =====================================================
+      // ACCEPT REQUEST
+      // =====================================================
+  
       const {
-        error:
-          acceptError,
+        error: acceptError,
       } = await supabase
-        .from(
-          'date_requests'
-        )
+        .from('date_requests')
         .update({
-          status:
-            'accepted',
+          status: 'accepted',
         })
-        .eq(
-          'id',
-          requestId
-        );
-
+        .eq('id', requestId)
+        .eq('status', 'pending');
+  
       if (acceptError) {
         throw acceptError;
       }
-
-
+  
+      // =====================================================
+      // GET BOTH PROFILES
+      // =====================================================
+  
       const {
-        data:
-          profilesData,
-        error:
-          fetchError,
+        data: profilesData,
+        error: fetchError,
       } = await supabase
         .from('profiles')
         .select(
@@ -1957,62 +1946,61 @@ export default function LeaderboardPage() {
           currentUser.id,
           dateData.requester_id,
         ]);
-
+  
       if (fetchError) {
         throw fetchError;
       }
-
-
+  
       const currentUserProfile =
         profilesData.find(
           (p) =>
-            p.id ===
-            currentUser.id
+            p.id === currentUser.id
         );
-
+  
       const requesterProfile =
         profilesData.find(
           (p) =>
-            p.id ===
-            dateData.requester_id
+            p.id === dateData.requester_id
         );
-
+  
       const newCurrentUserCount =
-        (currentUserProfile?.date_count ||
-          0) +
+        (currentUserProfile?.date_count || 0) +
         1;
-
+  
       const newRequesterCount =
-        (requesterProfile?.date_count ||
-          0) +
+        (requesterProfile?.date_count || 0) +
         1;
-
-
+  
+      // =====================================================
+      // GET REQUESTER USERNAME
+      // =====================================================
+  
       const {
-        data:
-          requesterProfileData,
-        error:
-          usernameError,
+        data: requesterProfileData,
+        error: usernameError,
       } = await supabase
         .from('profiles')
-        .select(
-          'username'
-        )
+        .select('username')
         .eq(
           'id',
           dateData.requester_id
         )
         .single();
-
+  
       if (usernameError) {
         throw usernameError;
       }
-
+  
       requesterUsername =
         requesterProfileData.username;
-
-
-      await supabase
+  
+      // =====================================================
+      // UPDATE DATE COUNTS
+      // =====================================================
+  
+      const {
+        error: updateCurrentUserError,
+      } = await supabase
         .from('profiles')
         .update({
           date_count:
@@ -2022,8 +2010,14 @@ export default function LeaderboardPage() {
           'id',
           currentUser.id
         );
-
-      await supabase
+  
+      if (updateCurrentUserError) {
+        throw updateCurrentUserError;
+      }
+  
+      const {
+        error: updateRequesterError,
+      } = await supabase
         .from('profiles')
         .update({
           date_count:
@@ -2033,44 +2027,52 @@ export default function LeaderboardPage() {
           'id',
           dateData.requester_id
         );
-
-
+  
+      if (updateRequesterError) {
+        throw updateRequesterError;
+      }
+  
+      // =====================================================
+      // CREATE DATING ROW
+      // =====================================================
+  
       const {
         data: couple,
-        error:
-          datingError,
+        error: datingError,
       } = await supabase
         .from('dating')
         .insert([
           {
             user1_id:
               dateData.requester_id,
-
+  
             user2_id:
               currentUser.id,
           },
         ])
         .select()
         .single();
-
+  
       if (datingError) {
         throw datingError;
       }
-
-
+  
+      // =====================================================
+      // CANCEL OTHER PENDING REQUESTS
+      // =====================================================
+  
       const cancelFilter =
         `requester_id.eq.${currentUser.id},` +
         `requested_id.eq.${currentUser.id},` +
         `requester_id.eq.${dateData.requester_id},` +
         `requested_id.eq.${dateData.requester_id}`;
-
-      await supabase
-        .from(
-          'date_requests'
-        )
+  
+      const {
+        error: cancelOthersError,
+      } = await supabase
+        .from('date_requests')
         .update({
-          status:
-            'cancelled',
+          status: 'cancelled',
         })
         .eq(
           'status',
@@ -2083,8 +2085,19 @@ export default function LeaderboardPage() {
         .or(
           cancelFilter
         );
-
-
+  
+      if (cancelOthersError) {
+        console.error(
+          'Error cancelling other date requests:',
+          cancelOthersError
+        );
+      }
+  
+      // =====================================================
+      // GIVE REQUESTER DATE POINTS
+      // 10% OF ACCEPTING USER'S POINTS + 10
+      // =====================================================
+  
       const pointsToAdd =
         Math.floor(
           (currentUserProfile?.christma_points ||
@@ -2092,23 +2105,25 @@ export default function LeaderboardPage() {
             0.1
         ) +
         10;
-
+  
       const updatedRequesterPoints =
         (requesterProfile?.christma_points ||
           0) +
         pointsToAdd;
-
+  
       const updatedRequesterDatePoints =
         (requesterProfile?.date_points ||
           0) +
         pointsToAdd;
-
-      await supabase
+  
+      const {
+        error: pointsError,
+      } = await supabase
         .from('profiles')
         .update({
           christma_points:
             updatedRequesterPoints,
-
+  
           date_points:
             updatedRequesterDatePoints,
         })
@@ -2116,29 +2131,52 @@ export default function LeaderboardPage() {
           'id',
           dateData.requester_id
         );
-
-
-      await supabase
-        .from(
-          'notifications'
-        )
+  
+      if (pointsError) {
+        throw pointsError;
+      }
+  
+      // =====================================================
+      // NOTIFICATION
+      // =====================================================
+  
+      const {
+        error: notificationError,
+      } = await supabase
+        .from('notifications')
         .insert({
           user_id: null,
-
+  
           message:
             `${currentUser.username} нь ${requesterUsername} ий болзооны саналыг зөвшөөрлөө! 💕`,
         });
-
-
+  
+      if (notificationError) {
+        console.error(
+          'Date notification error:',
+          notificationError
+        );
+      }
+  
+      // =====================================================
+      // ASSIGN COUPLE TASK
+      // =====================================================
+  
       await assignRandomTaskToCouple(
         couple.id
       );
-
+  
+      await fetchDatingTask();
+  
       alert(
         'Та болзооны саналыг хүлээж авлаа!'
       );
-
-      fetchActiveDate();
+  
+      // =====================================================
+      // REFRESH
+      // =====================================================
+  
+      await fetchActiveDate();
       fetchIncomingDateRequests();
       fetchLeaderboard();
     } catch (err) {
@@ -2146,13 +2184,12 @@ export default function LeaderboardPage() {
         'Error accepting date request:',
         err
       );
-
+  
       alert(
         'Болзооны саналыг зөвшөөрөх үед ямар нэгэн юм буруу боллоо.'
       );
     }
   }
-
 
   // =====================================================
   // REJECT DATE
@@ -2191,7 +2228,6 @@ export default function LeaderboardPage() {
           requestId
         );
 
-
       const {
         data: name,
       } = await supabase
@@ -2228,7 +2264,6 @@ export default function LeaderboardPage() {
       );
     }
   }
-
 
   // =====================================================
   // END DATE
@@ -2274,7 +2309,6 @@ export default function LeaderboardPage() {
         return;
       }
 
-
       const startedAtUTC =
         Date.parse(
           datingRow.started_at
@@ -2286,7 +2320,6 @@ export default function LeaderboardPage() {
       const diffMs =
         nowUTC -
         startedAtUTC;
-
 
       if (
         diffMs <
@@ -2326,7 +2359,6 @@ export default function LeaderboardPage() {
         return;
       }
 
-
       const {
         error:
           endDatingError,
@@ -2347,7 +2379,6 @@ export default function LeaderboardPage() {
         throw endDatingError;
       }
 
-
       await supabase
         .from(
           'date_requests'
@@ -2364,6 +2395,28 @@ export default function LeaderboardPage() {
           `requester_id.eq.${datingRow.user1_id},requested_id.eq.${datingRow.user2_id}`
         );
 
+      const {
+        error:
+          coupleTaskDeleteError,
+      } = await supabase
+        .from('couple_task')
+        .delete()
+        .in(
+          'assignee_id',
+          [
+            datingRow.user1_id,
+            datingRow.user2_id,
+          ]
+        );
+
+      if (
+        coupleTaskDeleteError
+      ) {
+        console.error(
+          'Error deleting couple tasks:',
+          coupleTaskDeleteError
+        );
+      }
 
       const {
         data:
@@ -2393,7 +2446,6 @@ export default function LeaderboardPage() {
         )
         .single();
 
-
       await supabase
         .from(
           'notifications'
@@ -2405,7 +2457,6 @@ export default function LeaderboardPage() {
             `💔 ${requesterProfile.username} ба ${requestedProfile.username} болзоогоо дуусгалаа.`,
         });
 
-
       alert(
         'Та болзоогоо дуусгалаа.'
       );
@@ -2413,6 +2464,8 @@ export default function LeaderboardPage() {
       setActiveDate(
         null
       );
+
+      setDatingTask(null);
 
       fetchActiveDate();
       fetchIncomingDateRequests();
@@ -2429,7 +2482,6 @@ export default function LeaderboardPage() {
     }
   }
 
-
   // =====================================================
   // PROFILE
   // =====================================================
@@ -2440,7 +2492,6 @@ export default function LeaderboardPage() {
         `/profile-view/${userId}`
       );
     };
-
 
   // =====================================================
   // USER CARD
@@ -2471,7 +2522,6 @@ export default function LeaderboardPage() {
       setTaskInput,
     ] = useState('');
 
-
     const isTop3User =
       top3UserIds.includes(
         currentUser?.id
@@ -2484,7 +2534,6 @@ export default function LeaderboardPage() {
     const currentUserCanManage =
       currentUser?.is_admin ||
       currentUser?.is_creator;
-
 
     return (
       <li
@@ -2527,8 +2576,6 @@ export default function LeaderboardPage() {
               'center',
           }}
         >
-          {/* PFP */}
-
           {user.profile_pic ? (
             <img
               src={
@@ -2583,7 +2630,6 @@ export default function LeaderboardPage() {
             </div>
           )}
 
-
           <div
             style={{
               flexGrow: 1,
@@ -2599,14 +2645,12 @@ export default function LeaderboardPage() {
 
             {user.nickname}
 
-
             {user.is_creator && (
               <>
                 {' '}
                 👑
               </>
             )}
-
 
             {user.is_admin &&
               !user.is_creator && (
@@ -2615,7 +2659,6 @@ export default function LeaderboardPage() {
                   🛡️
                 </>
               )}
-
 
             {!user.is_admin &&
               !user.is_creator && (
@@ -2635,10 +2678,7 @@ export default function LeaderboardPage() {
             {user.gender}
           </div>
 
-
           <div>
-            {/* NORMAL LIKE / DATE */}
-
             {!user.is_admin &&
               !user.is_creator &&
               !currentUser?.is_admin &&
@@ -2670,9 +2710,6 @@ export default function LeaderboardPage() {
                 </>
               )}
 
-
-            {/* PROFILE */}
-
             <button
               onClick={() =>
                 onViewProfile(
@@ -2682,11 +2719,6 @@ export default function LeaderboardPage() {
             >
               👀 Profile үзэх
             </button>
-
-
-            {/* BONUS
-                Only regular users get bonus here.
-            */}
 
             {currentUserCanManage &&
               !user.is_admin &&
@@ -2705,15 +2737,6 @@ export default function LeaderboardPage() {
                   🎁 Бонус
                 </button>
               )}
-
-
-            {/* ===========================================
-                WARNING
-
-                Admin can get warning.
-                Normal user can get warning.
-                Creator CANNOT get warning.
-            =========================================== */}
 
             {currentUserCanManage &&
               !user.is_creator &&
@@ -2734,9 +2757,6 @@ export default function LeaderboardPage() {
                   ⚠️ Анхааруулга
                 </button>
               )}
-
-
-            {/* TOP 3 BAN */}
 
             {isTop3User &&
               !isSelf &&
@@ -2778,9 +2798,6 @@ export default function LeaderboardPage() {
                 </button>
               ))}
 
-
-            {/* ADMIN / CREATOR UNBAN */}
-
             {currentUserCanManage &&
               isBanned &&
               !user.is_admin &&
@@ -2802,9 +2819,6 @@ export default function LeaderboardPage() {
                   ✅ Unban
                 </button>
               )}
-
-
-            {/* TASK */}
 
             {isTop3User &&
               isBanned &&
@@ -2869,9 +2883,6 @@ export default function LeaderboardPage() {
                 </>
               )}
 
-
-            {/* REPORT */}
-
             <button
               onClick={() =>
                 setActiveReportId(
@@ -2881,7 +2892,6 @@ export default function LeaderboardPage() {
             >
               🚩 Репорт
             </button>
-
 
             {activeReportId ===
               user.id && (
@@ -2944,22 +2954,31 @@ export default function LeaderboardPage() {
                 </button>
               </div>
             )}
-            {/* CREATOR DELETE USER */}
+
             {currentUser?.is_creator &&
               !user.is_creator &&
               currentUser?.id !== user.id && (
                 <button
                   onClick={() =>
-                    navigate(`/delete-user/${user.id}`)
+                    navigate(
+                      `/delete-user/${user.id}`
+                    )
                   }
                   style={{
-                    backgroundColor: '#dc3545',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    padding: '4px 7px',
-                    fontSize: '12px',
-                    cursor: 'pointer',
+                    backgroundColor:
+                      '#dc3545',
+                    color:
+                      'white',
+                    border:
+                      'none',
+                    borderRadius:
+                      '4px',
+                    padding:
+                      '4px 7px',
+                    fontSize:
+                      '12px',
+                    cursor:
+                      'pointer',
                   }}
                 >
                   🗑️ Устгах
@@ -2971,11 +2990,6 @@ export default function LeaderboardPage() {
     );
   }
 
-
-  // =====================================================
-  // PAGE
-  // =====================================================
-
   return (
     <div
       style={{
@@ -2984,8 +2998,6 @@ export default function LeaderboardPage() {
         padding: 20,
       }}
     >
-      {/* PROFILE BACK */}
-
       <button
         onClick={() =>
           navigate(
@@ -2998,9 +3010,6 @@ export default function LeaderboardPage() {
       >
         🔙 Profile руу буцах
       </button>
-
-
-      {/* NOTIFICATIONS */}
 
       <button
         onClick={() =>
@@ -3015,14 +3024,6 @@ export default function LeaderboardPage() {
         📢 Бүх мэдэгдэлүүд
         (Public Notifications)
       </button>
-
-
-      <hr />
-
-
-      {/* =================================================
-          CREATOR CONTROL
-      ================================================= */}
 
       {currentUser?.is_creator && (
         <div
@@ -3057,7 +3058,6 @@ export default function LeaderboardPage() {
             🚨 Reports
           </button>
 
-
           <button
             onClick={() =>
               navigate(
@@ -3067,7 +3067,6 @@ export default function LeaderboardPage() {
           >
             💌 Dating Requests
           </button>
-
 
           <button
             onClick={() =>
@@ -3079,7 +3078,6 @@ export default function LeaderboardPage() {
             ❤️ Active Dating
           </button>
 
-
           <button
             onClick={() =>
               navigate(
@@ -3089,13 +3087,16 @@ export default function LeaderboardPage() {
           >
             📋 Tasks
           </button>
+
+          <button
+            onClick={() =>
+              navigate('/bans')
+            }
+          >
+            🚫 Bans
+          </button>
         </div>
       )}
-
-
-      {/* =================================================
-          ACTIVE DATE
-      ================================================= */}
 
       {activeDate && (
         <div
@@ -3133,11 +3134,6 @@ export default function LeaderboardPage() {
         </div>
       )}
 
-
-      {/* =================================================
-          SINGLE TASK
-      ================================================= */}
-
       {!activeDate &&
         myTask && (
           <div className="p-6 mb-6 bg-yellow-200 border-4 border-yellow-500 rounded-xl shadow-lg animate-pulse text-center">
@@ -3156,11 +3152,6 @@ export default function LeaderboardPage() {
             </h3>
           </div>
         )}
-
-
-      {/* =================================================
-          COUPLE TASK
-      ================================================= */}
 
       {activeDate &&
         datingTask && (
@@ -3187,11 +3178,6 @@ export default function LeaderboardPage() {
             </h3>
           </div>
         )}
-
-
-      {/* =================================================
-          DATE REQUESTS
-      ================================================= */}
 
       {incomingDateRequests.length >
         0 && (
@@ -3240,17 +3226,11 @@ export default function LeaderboardPage() {
         </div>
       )}
 
-
-      {/* LOADING */}
-
       {loading && (
         <p>
           Loading...
         </p>
       )}
-
-
-      {/* ERROR */}
 
       {error && (
         <p
@@ -3262,13 +3242,6 @@ export default function LeaderboardPage() {
           {error.message}
         </p>
       )}
-
-
-      {/* =================================================
-          CREATOR ACCOUNTS
-
-          Creator cannot receive warnings.
-      ================================================= */}
 
       {!loading &&
         creatorUsers.length >
@@ -3329,13 +3302,6 @@ export default function LeaderboardPage() {
           </>
         )}
 
-
-      {/* =================================================
-          ADMIN ACCOUNTS
-
-          Admin CAN receive warnings.
-      ================================================= */}
-
       {!loading &&
         adminUsers.length >
           0 && (
@@ -3395,17 +3361,11 @@ export default function LeaderboardPage() {
           </>
         )}
 
-
-      {/* =================================================
-          NORMAL RANK
-      ================================================= */}
-
       <hr />
 
       <h2>
         Ранк 🏆
       </h2>
-
 
       {!loading &&
         !error && (
@@ -3469,7 +3429,6 @@ export default function LeaderboardPage() {
             )}
           </>
         )}
-
 
       <hr />
 

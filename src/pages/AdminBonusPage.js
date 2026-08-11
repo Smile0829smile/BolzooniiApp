@@ -109,7 +109,7 @@ export default function AdminBonusPage() {
   
     alert("Амжилттай!");
   
-    navigate("/");
+    navigate(-1);
   }
 
   if (!profile) return <p>Loading...</p>;

@@ -1,26 +1,81 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
-import { useParams, useNavigate } from 'react-router-dom';
+import {
+  useParams,
+  useNavigate,
+} from 'react-router-dom';
 
 export default function ProfileEdit() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const [profile, setProfile] = useState(null);
+  const [
+    profile,
+    setProfile,
+  ] = useState(null);
 
-  const [avatarPhotos, setAvatarPhotos] = useState([]);
-  const [extraPhotos, setExtraPhotos] = useState([]);
+  const [
+    avatarPhotos,
+    setAvatarPhotos,
+  ] = useState([]);
 
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [
+    extraPhotos,
+    setExtraPhotos,
+  ] = useState([]);
 
-  const [avatarUploading, setAvatarUploading] = useState(false);
-  const [extraPhotoUploading, setExtraPhotoUploading] = useState(false);
+  const [
+    loading,
+    setLoading,
+  ] = useState(true);
 
-  const [deletingAvatarPath, setDeletingAvatarPath] = useState(null);
-  const [deletingPhotoKey, setDeletingPhotoKey] = useState(null);
+  const [
+    saving,
+    setSaving,
+  ] = useState(false);
 
-  const [error, setError] = useState(null);
+  const [
+    avatarUploading,
+    setAvatarUploading,
+  ] = useState(false);
+
+  const [
+    extraPhotoUploading,
+    setExtraPhotoUploading,
+  ] = useState(false);
+
+  const [
+    deletingAvatarPath,
+    setDeletingAvatarPath,
+  ] = useState(null);
+
+  const [
+    deletingPhotoKey,
+    setDeletingPhotoKey,
+  ] = useState(null);
+
+  const [
+    error,
+    setError,
+  ] = useState(null);
+
+  // =====================================================
+  // BAN STATUS
+  // =====================================================
+
+  const [
+    isBanned,
+    setIsBanned,
+  ] = useState(false);
+
+  const [
+    changingBan,
+    setChangingBan,
+  ] = useState(false);
+
+  // =====================================================
+  // LOAD PAGE
+  // =====================================================
 
   useEffect(() => {
     loadPage();
@@ -32,26 +87,50 @@ export default function ProfileEdit() {
 
   async function checkCreator() {
     const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+      data: {
+        user,
+      },
+      error:
+        authError,
+    } =
+      await supabase.auth.getUser();
 
-    if (authError) throw authError;
-
-    if (!user) {
-      throw new Error('User not logged in');
+    if (authError) {
+      throw authError;
     }
 
-    const { data: creator, error: creatorError } = await supabase
+    if (!user) {
+      throw new Error(
+        'User not logged in'
+      );
+    }
+
+    const {
+      data:
+        creator,
+      error:
+        creatorError,
+    } = await supabase
       .from('profiles')
-      .select('id, username, is_creator')
-      .eq('id', user.id)
+      .select(
+        'id, username, is_creator'
+      )
+      .eq(
+        'id',
+        user.id
+      )
       .single();
 
-    if (creatorError) throw creatorError;
+    if (creatorError) {
+      throw creatorError;
+    }
 
-    if (!creator?.is_creator) {
-      throw new Error('Creator access required');
+    if (
+      !creator?.is_creator
+    ) {
+      throw new Error(
+        'Creator access required'
+      );
     }
 
     return creator;
@@ -61,33 +140,51 @@ export default function ProfileEdit() {
   // STORAGE HELPERS
   // =====================================================
 
-  function getStoragePathFromUrl(url) {
-    if (!url) return null;
+  function getStoragePathFromUrl(
+    url
+  ) {
+    if (!url) {
+      return null;
+    }
 
     const marker =
       '/storage/v1/object/public/avatars/';
 
-    const index = url.indexOf(marker);
+    const index =
+      url.indexOf(
+        marker
+      );
 
-    if (index === -1) {
+    if (
+      index === -1
+    ) {
       return null;
     }
 
     return decodeURIComponent(
-      url.substring(index + marker.length)
+      url.substring(
+        index +
+          marker.length
+      )
     );
   }
 
-  function getPublicUrl(storagePath) {
-    const { data } = supabase.storage
+  function getPublicUrl(
+    storagePath
+  ) {
+    const {
+      data,
+    } = supabase.storage
       .from('avatars')
-      .getPublicUrl(storagePath);
+      .getPublicUrl(
+        storagePath
+      );
 
     return data.publicUrl;
   }
 
   // =====================================================
-  // LOAD PAGE
+  // LOAD PROFILE
   // =====================================================
 
   async function loadPage() {
@@ -97,57 +194,127 @@ export default function ProfileEdit() {
 
       await checkCreator();
 
-      const { data: profileData, error: profileError } =
-        await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', id)
-          .single();
+      // ===============================================
+      // PROFILE
+      // ===============================================
 
-      if (profileError) throw profileError;
+      const {
+        data:
+          profileData,
+        error:
+          profileError,
+      } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq(
+          'id',
+          id
+        )
+        .single();
 
-      if (!profileData) {
-        throw new Error('Profile not found');
+      if (
+        profileError
+      ) {
+        throw profileError;
       }
 
-      setProfile(profileData);
+      if (
+        !profileData
+      ) {
+        throw new Error(
+          'Profile not found'
+        );
+      }
 
-      await fetchAvatarPhotos(profileData);
-      await fetchAllExtraPhotos(profileData);
+      setProfile(
+        profileData
+      );
+
+      // ===============================================
+      // BAN STATUS FROM bans TABLE
+      // ===============================================
+
+      const {
+        data:
+          banRows,
+        error:
+          banError,
+      } = await supabase
+        .from('bans')
+        .select('id')
+        .eq(
+          'banned_user_id',
+          profileData.id
+        )
+        .limit(1);
+
+      if (banError) {
+        throw banError;
+      }
+
+      setIsBanned(
+        (banRows || [])
+          .length > 0
+      );
+
+      // ===============================================
+      // PHOTOS
+      // ===============================================
+
+      await fetchAvatarPhotos(
+        profileData
+      );
+
+      await fetchAllExtraPhotos(
+        profileData
+      );
     } catch (err) {
       console.error(
         'Profile edit load error:',
         err
       );
 
-      setError(err.message);
+      setError(
+        err.message
+      );
     } finally {
       setLoading(false);
     }
   }
 
   // =====================================================
-  // FETCH ALL PFP FILES
+  // FETCH PFP PHOTOS
   // avatars/USER_ID/*
   // =====================================================
 
-  async function fetchAvatarPhotos(profileData) {
+  async function fetchAvatarPhotos(
+    profileData
+  ) {
     try {
       const folderPath =
         `avatars/${profileData.id}`;
 
       const {
-        data: files,
+        data:
+          files,
         error,
-      } = await supabase.storage
-        .from('avatars')
-        .list(folderPath, {
-          limit: 100,
-          sortBy: {
-            column: 'created_at',
-            order: 'desc',
-          },
-        });
+      } =
+        await supabase.storage
+          .from('avatars')
+          .list(
+            folderPath,
+            {
+              limit: 100,
+
+              sortBy: {
+                column:
+                  'created_at',
+
+                order:
+                  'desc',
+              },
+            }
+          );
 
       if (error) {
         throw error;
@@ -159,32 +326,56 @@ export default function ProfileEdit() {
         );
 
       const photos =
-        (files || [])
-          .filter((file) => file.name)
-          .map((file) => {
-            const storagePath =
-              `${folderPath}/${file.name}`;
+        (
+          files ||
+          []
+        )
+          .filter(
+            (file) =>
+              file.name
+          )
+          .map(
+            (
+              file
+            ) => {
+              const storagePath =
+                `${folderPath}/${file.name}`;
 
-            return {
-              name: file.name,
-              storage_path: storagePath,
-              photo_url:
-                getPublicUrl(storagePath),
-              created_at:
-                file.created_at || null,
-              is_current:
-                storagePath === currentPath,
-            };
-          });
+              return {
+                name:
+                  file.name,
 
-      setAvatarPhotos(photos);
+                storage_path:
+                  storagePath,
+
+                photo_url:
+                  getPublicUrl(
+                    storagePath
+                  ),
+
+                created_at:
+                  file.created_at ||
+                  null,
+
+                is_current:
+                  storagePath ===
+                  currentPath,
+              };
+            }
+          );
+
+      setAvatarPhotos(
+        photos
+      );
     } catch (err) {
       console.error(
         'Avatar photos error:',
         err
       );
 
-      setAvatarPhotos([]);
+      setAvatarPhotos(
+        []
+      );
     }
   }
 
@@ -192,18 +383,37 @@ export default function ProfileEdit() {
   // FETCH EXTRA PHOTOS
   // =====================================================
 
-  async function fetchAllExtraPhotos(profileData) {
+  async function fetchAllExtraPhotos(
+    profileData
+  ) {
     try {
-      const { data: dbPhotos, error: dbError } =
-        await supabase
-          .from('extra_photos')
-          .select(
-            'id, user_id, photo_url, created_at'
-          )
-          .eq('user_id', profileData.id)
-          .order('created_at', {
-            ascending: false,
-          });
+      // ===============================================
+      // DATABASE PHOTOS
+      // ===============================================
+
+      const {
+        data:
+          dbPhotos,
+        error:
+          dbError,
+      } = await supabase
+        .from(
+          'extra_photos'
+        )
+        .select(
+          'id, user_id, photo_url, created_at'
+        )
+        .eq(
+          'user_id',
+          profileData.id
+        )
+        .order(
+          'created_at',
+          {
+            ascending:
+              false,
+          }
+        );
 
       if (dbError) {
         console.error(
@@ -212,86 +422,162 @@ export default function ProfileEdit() {
         );
       }
 
+      // ===============================================
+      // STORAGE PHOTOS
+      // ===============================================
+
       const folderPath =
         `extra_photos/${profileData.id}`;
 
       const {
-        data: storageFiles,
-        error: storageError,
-      } = await supabase.storage
-        .from('avatars')
-        .list(folderPath, {
-          limit: 100,
-          sortBy: {
-            column: 'created_at',
-            order: 'desc',
-          },
-        });
+        data:
+          storageFiles,
+        error:
+          storageError,
+      } =
+        await supabase.storage
+          .from('avatars')
+          .list(
+            folderPath,
+            {
+              limit: 100,
 
-      if (storageError) {
+              sortBy: {
+                column:
+                  'created_at',
+
+                order:
+                  'desc',
+              },
+            }
+          );
+
+      if (
+        storageError
+      ) {
         console.error(
           'Extra photos Storage error:',
           storageError
         );
       }
 
-      const combined = [];
+      const combined =
+        [];
 
-      (dbPhotos || []).forEach((photo) => {
-        const storagePath =
-          getStoragePathFromUrl(
-            photo.photo_url
-          );
+      // ===============================================
+      // DB ROWS
+      // ===============================================
 
-        combined.push({
-          id: photo.id,
-          user_id: photo.user_id,
-          photo_url: photo.photo_url,
-          storage_path: storagePath,
-          created_at: photo.created_at,
-          source: 'database',
-        });
-      });
+      (
+        dbPhotos ||
+        []
+      ).forEach(
+        (
+          photo
+        ) => {
+          const storagePath =
+            getStoragePathFromUrl(
+              photo.photo_url
+            );
 
-      (storageFiles || []).forEach((file) => {
-        if (!file.name) return;
+          combined.push({
+            id:
+              photo.id,
 
-        const storagePath =
-          `${folderPath}/${file.name}`;
+            user_id:
+              photo.user_id,
 
-        const exists =
-          combined.some(
-            (photo) =>
-              photo.storage_path ===
-              storagePath
-          );
+            photo_url:
+              photo.photo_url,
 
-        if (exists) return;
+            storage_path:
+              storagePath,
 
-        combined.push({
-          id: null,
-          storage_id:
-            file.id || storagePath,
-          user_id:
-            profileData.id,
-          photo_url:
-            getPublicUrl(storagePath),
-          storage_path:
-            storagePath,
-          created_at:
-            file.created_at || null,
-          source: 'storage',
-        });
-      });
+            created_at:
+              photo.created_at,
 
-      setExtraPhotos(combined);
+            source:
+              'database',
+          });
+        }
+      );
+
+      // ===============================================
+      // STORAGE FILES WITHOUT DB ROW
+      // ===============================================
+
+      (
+        storageFiles ||
+        []
+      ).forEach(
+        (
+          file
+        ) => {
+          if (
+            !file.name
+          ) {
+            return;
+          }
+
+          const storagePath =
+            `${folderPath}/${file.name}`;
+
+          const exists =
+            combined.some(
+              (
+                photo
+              ) =>
+                photo.storage_path ===
+                storagePath
+            );
+
+          if (
+            exists
+          ) {
+            return;
+          }
+
+          combined.push({
+            id:
+              null,
+
+            storage_id:
+              file.id ||
+              storagePath,
+
+            user_id:
+              profileData.id,
+
+            photo_url:
+              getPublicUrl(
+                storagePath
+              ),
+
+            storage_path:
+              storagePath,
+
+            created_at:
+              file.created_at ||
+              null,
+
+            source:
+              'storage',
+          });
+        }
+      );
+
+      setExtraPhotos(
+        combined
+      );
     } catch (err) {
       console.error(
         'fetchAllExtraPhotos error:',
         err
       );
 
-      setExtraPhotos([]);
+      setExtraPhotos(
+        []
+      );
     }
   }
 
@@ -299,11 +585,20 @@ export default function ProfileEdit() {
   // CHANGE PROFILE FIELD
   // =====================================================
 
-  function handleChange(field, value) {
-    setProfile((current) => ({
-      ...current,
-      [field]: value,
-    }));
+  function handleChange(
+    field,
+    value
+  ) {
+    setProfile(
+      (
+        current
+      ) => ({
+        ...current,
+
+        [field]:
+          value,
+      })
+    );
   }
 
   // =====================================================
@@ -316,23 +611,41 @@ export default function ProfileEdit() {
 
       await checkCreator();
 
-      if (!profile.username?.trim()) {
+      // ===============================================
+      // REQUIRED
+      // ===============================================
+
+      if (
+        !profile.username
+          ?.trim()
+      ) {
         alert(
           'Username хоосон байж болохгүй.'
         );
+
         return;
       }
 
-      if (!profile.nickname?.trim()) {
+      if (
+        !profile.nickname
+          ?.trim()
+      ) {
         alert(
           'Nickname хоосон байж болохгүй.'
         );
+
         return;
       }
 
+      // ===============================================
+      // UNIQUE USERNAME
+      // ===============================================
+
       const {
-        data: usernameOwner,
-        error: usernameError,
+        data:
+          usernameOwner,
+        error:
+          usernameError,
       } = await supabase
         .from('profiles')
         .select('id')
@@ -340,107 +653,134 @@ export default function ProfileEdit() {
           'username',
           profile.username.trim()
         )
-        .neq('id', profile.id)
+        .neq(
+          'id',
+          profile.id
+        )
         .maybeSingle();
 
-      if (usernameError) {
+      if (
+        usernameError
+      ) {
         throw usernameError;
       }
 
-      if (usernameOwner) {
+      if (
+        usernameOwner
+      ) {
         alert(
           'Энэ username аль хэдийн ашиглагдаж байна.'
         );
+
         return;
       }
 
-      const { error: updateError } =
-        await supabase
-          .from('profiles')
-          .update({
-            username:
-              profile.username.trim(),
+      // ===============================================
+      // UPDATE PROFILE
+      //
+      // is_banned removed
+      // is_in_relationship removed
+      // is_on_break removed
+      // ===============================================
 
-            nickname:
-              profile.nickname.trim(),
+      const {
+        error:
+          updateError,
+      } = await supabase
+        .from('profiles')
+        .update({
+          username:
+            profile.username.trim(),
 
-            phone_number:
-              profile.phone_number?.trim() ||
-              null,
+          nickname:
+            profile.nickname.trim(),
 
-            gender:
-              profile.gender || null,
+          phone_number:
+            profile.phone_number
+              ?.trim() ||
+            null,
 
-            birthdate:
-              profile.birthdate || null,
+          gender:
+            profile.gender ||
+            null,
 
-            location:
-              profile.location?.trim() ||
-              null,
+          birthdate:
+            profile.birthdate ||
+            null,
 
-            christma_points:
+          location:
+            profile.location
+              ?.trim() ||
+            null,
+
+          christma_points:
+            Number(
+              profile.christma_points
+            ) ||
+            0,
+
+          date_points:
+            Number(
+              profile.date_points
+            ) ||
+            0,
+
+          like_count:
+            Number(
+              profile.like_count
+            ) ||
+            0,
+
+          date_count:
+            Number(
+              profile.date_count
+            ) ||
+            0,
+
+          anhaaruulga:
+            Math.max(
+              0,
+
               Number(
-                profile.christma_points
-              ) || 0,
+                profile.anhaaruulga
+              ) ||
+                0
+            ),
 
-            date_points:
-              Number(
-                profile.date_points
-              ) || 0,
+          is_admin:
+            profile.is_admin ===
+            true,
 
-            like_count:
-              Number(
-                profile.like_count
-              ) || 0,
+          is_creator:
+            profile.is_creator ===
+            true,
 
-            date_count:
-              Number(
-                profile.date_count
-              ) || 0,
+          agreed_to_rules:
+            profile.agreed_to_rules ===
+            true,
+        })
+        .eq(
+          'id',
+          profile.id
+        );
 
-            anhaaruulga:
-              Math.max(
-                0,
-                Number(
-                  profile.anhaaruulga
-                ) || 0
-              ),
+      if (
+        updateError
+      ) {
+        throw updateError;
+      }
 
-            is_admin:
-              profile.is_admin === true,
+      alert(
+        'Profile амжилттай хадгалагдлаа.'
+      );
 
-            is_creator:
-              profile.is_creator === true,
-
-            is_banned:
-              profile.is_banned === true,
-
-            is_in_relationship:
-              profile.is_in_relationship ===
-              true,
-
-            is_on_break:
-              profile.is_on_break === true,
-
-            agreed_to_rules:
-              profile.agreed_to_rules ===
-              true,
-          })
-          .eq('id', profile.id);
-
-          if (updateError) {
-            throw updateError;
-          }
-          
-          alert(
-            'Profile амжилттай хадгалагдлаа.'
-          );
-          
-          // Save хийсний дараа тухайн хэрэглэгчийн ProfileView руу буцна
-          navigate(`/profile-view/${profile.id}`, {
-            replace: true,
-          }); 
-
+      navigate(
+        `/profile-view/${profile.id}`,
+        {
+          replace:
+            true,
+        }
+      );
     } catch (err) {
       console.error(
         'Save error:',
@@ -456,36 +796,314 @@ export default function ProfileEdit() {
   }
 
   // =====================================================
+  // BAN / UNBAN
+  // USE bans TABLE
+  // =====================================================
+
+  async function handleBanToggle(
+    shouldBan
+  ) {
+    if (
+      changingBan
+    ) {
+      return;
+    }
+
+    try {
+      setChangingBan(
+        true
+      );
+
+      const creator =
+        await checkCreator();
+
+      // ===============================================
+      // CREATOR CANNOT BE BANNED
+      // ===============================================
+
+      if (
+        profile.is_creator ||
+        profile.is_admin
+      ) {
+        alert(
+          profile.is_creator
+            ? 'Creator account-ийг ban хийх боломжгүй.'
+            : 'Admin account-ийг ban хийх боломжгүй.'
+        );
+      
+        setIsBanned(
+          false
+        );
+      
+        return;
+      }
+
+      // ===============================================
+      // BAN
+      // ===============================================
+
+      if (
+        shouldBan
+      ) {
+        const {
+          data:
+            existingBanRows,
+          error:
+            existingBanError,
+        } = await supabase
+          .from('bans')
+          .select('id')
+          .eq(
+            'banned_user_id',
+            profile.id
+          )
+          .limit(1);
+
+        if (
+          existingBanError
+        ) {
+          throw existingBanError;
+        }
+
+        // Insert only if not already banned
+        if (
+          !existingBanRows ||
+          existingBanRows.length ===
+            0
+        ) {
+          const {
+            error:
+              insertError,
+          } = await supabase
+            .from('bans')
+            .insert({
+              banned_user_id:
+                profile.id,
+
+              banned_by_id:
+                creator.id,
+            });
+
+          if (
+            insertError
+          ) {
+            throw insertError;
+          }
+        }
+
+        // =============================================
+        // CANCEL PENDING DATE REQUESTS
+        // =============================================
+
+        const {
+          error:
+            cancelError,
+        } = await supabase
+          .from(
+            'date_requests'
+          )
+          .update({
+            status:
+              'cancelled',
+          })
+          .eq(
+            'status',
+            'pending'
+          )
+          .or(
+            `requester_id.eq.${profile.id},requested_id.eq.${profile.id}`
+          );
+
+        if (
+          cancelError
+        ) {
+          console.error(
+            'Error cancelling pending date requests:',
+            cancelError
+          );
+        }
+
+        // =============================================
+        // NOTIFICATION
+        // =============================================
+
+        const {
+          error:
+            notificationError,
+        } = await supabase
+          .from(
+            'notifications'
+          )
+          .insert({
+            user_id:
+              null,
+
+            message:
+              `${profile.username} бандууллаа! 🚫`,
+          });
+
+        if (
+          notificationError
+        ) {
+          console.error(
+            'Ban notification error:',
+            notificationError
+          );
+        }
+
+        setIsBanned(
+          true
+        );
+
+        alert(
+          `${profile.username} амжилттай бандууллаа.`
+        );
+      }
+
+      // ===============================================
+      // UNBAN
+      // ===============================================
+
+      else {
+        const {
+          error:
+            deleteError,
+        } = await supabase
+          .from('bans')
+          .delete()
+          .eq(
+            'banned_user_id',
+            profile.id
+          );
+
+        if (
+          deleteError
+        ) {
+          throw deleteError;
+        }
+
+        const {
+          error:
+            notificationError,
+        } = await supabase
+          .from(
+            'notifications'
+          )
+          .insert({
+            user_id:
+              null,
+
+            message:
+              `${profile.username} бангаас гарлаа! ✅`,
+          });
+
+        if (
+          notificationError
+        ) {
+          console.error(
+            'Unban notification error:',
+            notificationError
+          );
+        }
+
+        setIsBanned(
+          false
+        );
+
+        alert(
+          `${profile.username} бангаас амжилттай гарлаа.`
+        );
+      }
+    } catch (err) {
+      console.error(
+        'Ban change error:',
+        err
+      );
+
+      alert(
+        `Ban өөрчлөхөд алдаа гарлаа:\n${err.message}`
+      );
+
+      // ===============================================
+      // RELOAD REAL BAN STATE
+      // ===============================================
+
+      try {
+        const {
+          data:
+            actualBans,
+        } = await supabase
+          .from('bans')
+          .select('id')
+          .eq(
+            'banned_user_id',
+            profile.id
+          )
+          .limit(1);
+
+        setIsBanned(
+          (
+            actualBans ||
+            []
+          ).length > 0
+        );
+      } catch {
+        // do nothing
+      }
+    } finally {
+      setChangingBan(
+        false
+      );
+    }
+  }
+
+  // =====================================================
   // ADD NEW PFP
   // =====================================================
 
-  async function handleAvatarUpload(event) {
+  async function handleAvatarUpload(
+    event
+  ) {
     const file =
-      event.target.files?.[0];
+      event.target
+        .files?.[0];
 
-    event.target.value = '';
+    event.target.value =
+      '';
 
-    if (!file) return;
+    if (!file) {
+      return;
+    }
 
-    if (!file.type.startsWith('image/')) {
+    if (
+      !file.type.startsWith(
+        'image/'
+      )
+    ) {
       alert(
         'Зөвхөн зураг upload хийх боломжтой.'
       );
+
       return;
     }
 
     if (
       file.size >
-      10 * 1024 * 1024
+      10 *
+        1024 *
+        1024
     ) {
       alert(
         'Зураг 10MB-аас бага байх ёстой.'
       );
+
       return;
     }
 
     try {
-      setAvatarUploading(true);
+      setAvatarUploading(
+        true
+      );
 
       await checkCreator();
 
@@ -503,29 +1121,40 @@ export default function ProfileEdit() {
         `avatars/${profile.id}/${filename}`;
 
       const {
-        error: uploadError,
-      } = await supabase.storage
-        .from('avatars')
-        .upload(
-          storagePath,
-          file,
-          {
-            cacheControl: '3600',
-            upsert: false,
-            contentType:
-              file.type,
-          }
-        );
+        error:
+          uploadError,
+      } =
+        await supabase.storage
+          .from('avatars')
+          .upload(
+            storagePath,
+            file,
+            {
+              cacheControl:
+                '3600',
 
-      if (uploadError) {
+              upsert:
+                false,
+
+              contentType:
+                file.type,
+            }
+          );
+
+      if (
+        uploadError
+      ) {
         throw uploadError;
       }
 
       const newUrl =
-        getPublicUrl(storagePath);
+        getPublicUrl(
+          storagePath
+        );
 
       const {
-        error: updateError,
+        error:
+          updateError,
       } = await supabase
         .from('profiles')
         .update({
@@ -537,7 +1166,9 @@ export default function ProfileEdit() {
           profile.id
         );
 
-      if (updateError) {
+      if (
+        updateError
+      ) {
         await supabase.storage
           .from('avatars')
           .remove([
@@ -547,11 +1178,13 @@ export default function ProfileEdit() {
         throw updateError;
       }
 
-      const updatedProfile = {
-        ...profile,
-        profile_pic:
-          newUrl,
-      };
+      const updatedProfile =
+        {
+          ...profile,
+
+          profile_pic:
+            newUrl,
+        };
 
       setProfile(
         updatedProfile
@@ -574,7 +1207,9 @@ export default function ProfileEdit() {
         `PFP upload хийхэд алдаа гарлаа:\n${err.message}`
       );
     } finally {
-      setAvatarUploading(false);
+      setAvatarUploading(
+        false
+      );
     }
   }
 
@@ -585,7 +1220,9 @@ export default function ProfileEdit() {
   async function handleUseAvatar(
     avatar
   ) {
-    if (avatar.is_current) {
+    if (
+      avatar.is_current
+    ) {
       return;
     }
 
@@ -594,13 +1231,18 @@ export default function ProfileEdit() {
         'Энэ зургийг үндсэн PFP болгох уу?'
       );
 
-    if (!confirmed) return;
+    if (
+      !confirmed
+    ) {
+      return;
+    }
 
     try {
       await checkCreator();
 
       const {
-        error: updateError,
+        error:
+          updateError,
       } = await supabase
         .from('profiles')
         .update({
@@ -612,15 +1254,19 @@ export default function ProfileEdit() {
           profile.id
         );
 
-      if (updateError) {
+      if (
+        updateError
+      ) {
         throw updateError;
       }
 
-      const updatedProfile = {
-        ...profile,
-        profile_pic:
-          avatar.photo_url,
-      };
+      const updatedProfile =
+        {
+          ...profile,
+
+          profile_pic:
+            avatar.photo_url,
+        };
 
       setProfile(
         updatedProfile
@@ -646,7 +1292,7 @@ export default function ProfileEdit() {
   }
 
   // =====================================================
-  // DELETE ONE PFP
+  // DELETE PFP
   // =====================================================
 
   async function handleDeleteAvatar(
@@ -659,7 +1305,11 @@ export default function ProfileEdit() {
           : 'Энэ PFP зургийг устгах уу?'
       );
 
-    if (!confirmed) return;
+    if (
+      !confirmed
+    ) {
+      return;
+    }
 
     try {
       setDeletingAvatarPath(
@@ -669,41 +1319,54 @@ export default function ProfileEdit() {
       await checkCreator();
 
       const {
-        error: storageError,
-      } = await supabase.storage
-        .from('avatars')
-        .remove([
-          avatar.storage_path,
-        ]);
+        error:
+          storageError,
+      } =
+        await supabase.storage
+          .from('avatars')
+          .remove([
+            avatar.storage_path,
+          ]);
 
-      if (storageError) {
+      if (
+        storageError
+      ) {
         throw storageError;
       }
 
       let updatedProfile =
         profile;
 
-      if (avatar.is_current) {
+      if (
+        avatar.is_current
+      ) {
         const {
-          error: profileError,
+          error:
+            profileError,
         } = await supabase
           .from('profiles')
           .update({
-            profile_pic: null,
+            profile_pic:
+              null,
           })
           .eq(
             'id',
             profile.id
           );
 
-        if (profileError) {
+        if (
+          profileError
+        ) {
           throw profileError;
         }
 
-        updatedProfile = {
-          ...profile,
-          profile_pic: null,
-        };
+        updatedProfile =
+          {
+            ...profile,
+
+            profile_pic:
+              null,
+          };
 
         setProfile(
           updatedProfile
@@ -741,41 +1404,56 @@ export default function ProfileEdit() {
     event
   ) {
     const file =
-      event.target.files?.[0];
+      event.target
+        .files?.[0];
 
-    event.target.value = '';
+    event.target.value =
+      '';
 
-    if (!file) return;
-
-    if (
-      extraPhotos.length >= 3
-    ) {
-      alert(
-        `Энэ хэрэглэгч ${extraPhotos.length} зурагтай байна.\n` +
-          'Maximum 3 extra photos allowed.'
-      );
+    if (!file) {
       return;
     }
 
-    if (!file.type.startsWith('image/')) {
+    if (
+      extraPhotos.length >=
+      3
+    ) {
+      alert(
+        `Энэ хэрэглэгч ${extraPhotos.length} зурагтай байна.\nMaximum 3 extra photos allowed.`
+      );
+
+      return;
+    }
+
+    if (
+      !file.type.startsWith(
+        'image/'
+      )
+    ) {
       alert(
         'Зөвхөн зураг upload хийх боломжтой.'
       );
+
       return;
     }
 
     if (
       file.size >
-      10 * 1024 * 1024
+      10 *
+        1024 *
+        1024
     ) {
       alert(
         'Зураг 10MB-аас бага байх ёстой.'
       );
+
       return;
     }
 
     try {
-      setExtraPhotoUploading(true);
+      setExtraPhotoUploading(
+        true
+      );
 
       await checkCreator();
 
@@ -783,30 +1461,42 @@ export default function ProfileEdit() {
         `extra_photos/${profile.id}`;
 
       const {
-        data: existingFiles,
-        error: listError,
-      } = await supabase.storage
-        .from('avatars')
-        .list(folderPath, {
-          limit: 100,
-        });
+        data:
+          existingFiles,
+        error:
+          listError,
+      } =
+        await supabase.storage
+          .from('avatars')
+          .list(
+            folderPath,
+            {
+              limit:
+                100,
+            }
+          );
 
-      if (listError) {
+      if (
+        listError
+      ) {
         throw listError;
       }
 
       const realFiles =
-        (existingFiles || []).filter(
+        (
+          existingFiles ||
+          []
+        ).filter(
           (file) =>
             file.name
         );
 
       if (
-        realFiles.length >= 3
+        realFiles.length >=
+        3
       ) {
         alert(
-          `Storage-д ${realFiles.length} зураг байна.\n` +
-            'Maximum 3 extra photos.'
+          `Storage-д ${realFiles.length} зураг байна.\nMaximum 3 extra photos.`
         );
 
         return;
@@ -826,21 +1516,29 @@ export default function ProfileEdit() {
         `extra_photos/${profile.id}/${filename}`;
 
       const {
-        error: uploadError,
-      } = await supabase.storage
-        .from('avatars')
-        .upload(
-          storagePath,
-          file,
-          {
-            cacheControl: '3600',
-            upsert: false,
-            contentType:
-              file.type,
-          }
-        );
+        error:
+          uploadError,
+      } =
+        await supabase.storage
+          .from('avatars')
+          .upload(
+            storagePath,
+            file,
+            {
+              cacheControl:
+                '3600',
 
-      if (uploadError) {
+              upsert:
+                false,
+
+              contentType:
+                file.type,
+            }
+          );
+
+      if (
+        uploadError
+      ) {
         throw uploadError;
       }
 
@@ -850,9 +1548,12 @@ export default function ProfileEdit() {
         );
 
       const {
-        error: insertError,
+        error:
+          insertError,
       } = await supabase
-        .from('extra_photos')
+        .from(
+          'extra_photos'
+        )
         .insert({
           user_id:
             profile.id,
@@ -861,7 +1562,9 @@ export default function ProfileEdit() {
             photoUrl,
         });
 
-      if (insertError) {
+      if (
+        insertError
+      ) {
         await supabase.storage
           .from('avatars')
           .remove([
@@ -888,7 +1591,9 @@ export default function ProfileEdit() {
         `Зураг нэмэхэд алдаа гарлаа:\n${err.message}`
       );
     } finally {
-      setExtraPhotoUploading(false);
+      setExtraPhotoUploading(
+        false
+      );
     }
   }
 
@@ -908,7 +1613,11 @@ export default function ProfileEdit() {
         'Энэ extra зургийг бүр мөсөн устгах уу?'
       );
 
-    if (!confirmed) return;
+    if (
+      !confirmed
+    ) {
+      return;
+    }
 
     try {
       setDeletingPhotoKey(
@@ -917,44 +1626,81 @@ export default function ProfileEdit() {
 
       await checkCreator();
 
-      if (photo.storage_path) {
-        const {
-          error: storageError,
-        } = await supabase.storage
-          .from('avatars')
-          .remove([
-            photo.storage_path,
-          ]);
+      // ===============================================
+      // DELETE STORAGE FILE
+      // ===============================================
 
-        if (storageError) {
+      if (
+        photo.storage_path
+      ) {
+        const {
+          error:
+            storageError,
+        } =
+          await supabase.storage
+            .from(
+              'avatars'
+            )
+            .remove([
+              photo.storage_path,
+            ]);
+
+        if (
+          storageError
+        ) {
           throw storageError;
         }
       }
 
-      if (photo.id) {
+      // ===============================================
+      // DELETE DATABASE ROW
+      // ===============================================
+
+      if (
+        photo.id
+      ) {
         const {
-          error: dbError,
+          error:
+            dbError,
         } = await supabase
-          .from('extra_photos')
+          .from(
+            'extra_photos'
+          )
           .delete()
           .eq(
             'id',
             photo.id
           );
 
-        if (dbError) {
+        if (
+          dbError
+        ) {
           throw dbError;
         }
       } else if (
         photo.photo_url
       ) {
-        await supabase
-          .from('extra_photos')
+        const {
+          error:
+            dbError,
+        } = await supabase
+          .from(
+            'extra_photos'
+          )
           .delete()
           .eq(
             'photo_url',
             photo.photo_url
           );
+
+        if (
+          dbError
+        ) {
+          console.error(
+            'Extra photo DB cleanup error:',
+            dbError
+          );
+        }
       }
 
       await fetchAllExtraPhotos(
@@ -981,10 +1727,12 @@ export default function ProfileEdit() {
   }
 
   // =====================================================
-  // LOADING / ERROR
+  // LOADING
   // =====================================================
 
-  if (loading) {
+  if (
+    loading
+  ) {
     return (
       <p>
         Profile ачаалж байна...
@@ -992,16 +1740,24 @@ export default function ProfileEdit() {
     );
   }
 
-  if (error) {
+  // =====================================================
+  // ERROR
+  // =====================================================
+
+  if (
+    error
+  ) {
     return (
       <div
         style={{
-          padding: '20px',
+          padding:
+            '20px',
         }}
       >
         <p
           style={{
-            color: 'red',
+            color:
+              'red',
           }}
         >
           ❌ {error}
@@ -1009,7 +1765,9 @@ export default function ProfileEdit() {
 
         <button
           onClick={() =>
-            navigate('/leaderboard')
+            navigate(
+              '/leaderboard'
+            )
           }
         >
           🔙 Leaderboard
@@ -1018,7 +1776,9 @@ export default function ProfileEdit() {
     );
   }
 
-  if (!profile) {
+  if (
+    !profile
+  ) {
     return (
       <p>
         Profile олдсонгүй.
@@ -1030,19 +1790,41 @@ export default function ProfileEdit() {
   // STYLES
   // =====================================================
 
-  const inputStyle = {
-    width: '100%',
-    padding: '9px',
-    marginTop: '5px',
-    marginBottom: '15px',
-    boxSizing: 'border-box',
-    borderRadius: '5px',
-    border: '1px solid #ccc',
-  };
+  const inputStyle =
+    {
+      width:
+        '100%',
 
-  const labelStyle = {
-    fontWeight: 'bold',
-  };
+      padding:
+        '9px',
+
+      marginTop:
+        '5px',
+
+      marginBottom:
+        '15px',
+
+      boxSizing:
+        'border-box',
+
+      borderRadius:
+        '5px',
+
+      border:
+        '1px solid #ccc',
+    };
+
+  const labelStyle =
+    {
+      fontWeight:
+        'bold',
+    };
+
+  const statusRowStyle =
+    {
+      marginBottom:
+        '10px',
+    };
 
   // =====================================================
   // PAGE
@@ -1051,20 +1833,36 @@ export default function ProfileEdit() {
   return (
     <div
       style={{
-        maxWidth: '900px',
-        margin: '0 auto',
-        padding: '20px',
+        maxWidth:
+          '900px',
+
+        margin:
+          '0 auto',
+
+        padding:
+          '20px',
       }}
     >
+      {/* ===============================================
+          BACK
+      =============================================== */}
+
       <button
         onClick={() =>
           navigate(-1)
         }
         style={{
-          padding: '8px 12px',
-          marginBottom: '20px',
-          borderRadius: '5px',
-          cursor: 'pointer',
+          padding:
+            '8px 12px',
+
+          marginBottom:
+            '20px',
+
+          borderRadius:
+            '5px',
+
+          cursor:
+            'pointer',
         }}
       >
         🔙 Profile руу буцах
@@ -1078,36 +1876,55 @@ export default function ProfileEdit() {
         {profile.username}
       </h2>
 
-      {/* =================================================
-          ALL PFP PHOTOS
-      ================================================= */}
+      {/* ===============================================
+          PFP PHOTOS
+      =============================================== */}
 
       <hr />
 
       <h3>
-        🖼️ PFP Photos ({avatarPhotos.length})
+        🖼️ PFP Photos (
+        {avatarPhotos.length}
+        )
       </h3>
 
-      {avatarPhotos.length > 0 ? (
+      {avatarPhotos.length >
+      0 ? (
         <div
           style={{
-            display: 'flex',
-            gap: '15px',
-            flexWrap: 'wrap',
-            marginBottom: '20px',
+            display:
+              'flex',
+
+            gap:
+              '15px',
+
+            flexWrap:
+              'wrap',
+
+            marginBottom:
+              '20px',
           }}
         >
           {avatarPhotos.map(
-            (avatar) => (
+            (
+              avatar
+            ) => (
               <div
                 key={
                   avatar.storage_path
                 }
                 style={{
-                  width: '150px',
-                  padding: '10px',
-                  borderRadius: '8px',
-                  textAlign: 'center',
+                  width:
+                    '150px',
+
+                  padding:
+                    '10px',
+
+                  borderRadius:
+                    '8px',
+
+                  textAlign:
+                    'center',
 
                   border:
                     avatar.is_current
@@ -1121,18 +1938,28 @@ export default function ProfileEdit() {
                   }
                   alt="PFP"
                   style={{
-                    width: '130px',
-                    height: '130px',
-                    objectFit: 'cover',
-                    borderRadius: '8px',
+                    width:
+                      '130px',
+
+                    height:
+                      '130px',
+
+                    objectFit:
+                      'cover',
+
+                    borderRadius:
+                      '8px',
                   }}
                 />
 
                 {avatar.is_current ? (
                   <p
                     style={{
-                      color: '#28a745',
-                      fontWeight: 'bold',
+                      color:
+                        '#28a745',
+
+                      fontWeight:
+                        'bold',
                     }}
                   >
                     ✅ Current PFP
@@ -1145,14 +1972,29 @@ export default function ProfileEdit() {
                       )
                     }
                     style={{
-                      width: '100%',
-                      marginTop: '8px',
-                      padding: '7px',
-                      border: 'none',
-                      borderRadius: '5px',
-                      backgroundColor: '#007bff',
-                      color: 'white',
-                      cursor: 'pointer',
+                      width:
+                        '100%',
+
+                      marginTop:
+                        '8px',
+
+                      padding:
+                        '7px',
+
+                      border:
+                        'none',
+
+                      borderRadius:
+                        '5px',
+
+                      backgroundColor:
+                        '#007bff',
+
+                      color:
+                        'white',
+
+                      cursor:
+                        'pointer',
                     }}
                   >
                     🖼️ Use as PFP
@@ -1170,14 +2012,38 @@ export default function ProfileEdit() {
                     avatar.storage_path
                   }
                   style={{
-                    width: '100%',
-                    marginTop: '6px',
-                    padding: '7px',
-                    border: 'none',
-                    borderRadius: '5px',
-                    backgroundColor: '#dc3545',
-                    color: 'white',
-                    cursor: 'pointer',
+                    width:
+                      '100%',
+
+                    marginTop:
+                      '6px',
+
+                    padding:
+                      '7px',
+
+                    border:
+                      'none',
+
+                    borderRadius:
+                      '5px',
+
+                    backgroundColor:
+                      '#dc3545',
+
+                    color:
+                      'white',
+
+                    cursor:
+                      deletingAvatarPath ===
+                      avatar.storage_path
+                        ? 'not-allowed'
+                        : 'pointer',
+
+                    opacity:
+                      deletingAvatarPath ===
+                      avatar.storage_path
+                        ? 0.6
+                        : 1,
                   }}
                 >
                   {deletingAvatarPath ===
@@ -1197,11 +2063,20 @@ export default function ProfileEdit() {
 
       <label
         style={{
-          display: 'inline-block',
-          padding: '9px 13px',
-          backgroundColor: '#28a745',
-          color: 'white',
-          borderRadius: '5px',
+          display:
+            'inline-block',
+
+          padding:
+            '9px 13px',
+
+          backgroundColor:
+            '#28a745',
+
+          color:
+            'white',
+
+          borderRadius:
+            '5px',
 
           cursor:
             avatarUploading
@@ -1213,10 +2088,13 @@ export default function ProfileEdit() {
               ? 0.6
               : 1,
 
-          marginBottom: '25px',
+          marginBottom:
+            '25px',
         }}
       >
-        ➕ Add PFP
+        {avatarUploading
+          ? 'Uploading...'
+          : '➕ Add PFP'}
 
         <input
           type="file"
@@ -1228,28 +2106,39 @@ export default function ProfileEdit() {
             handleAvatarUpload
           }
           style={{
-            display: 'none',
+            display:
+              'none',
           }}
         />
       </label>
 
-      {/* =================================================
+      {/* ===============================================
           EXTRA PHOTOS
-      ================================================= */}
+      =============================================== */}
 
       <hr />
 
       <h3>
-        📸 Extra Photos ({extraPhotos.length})
+        📸 Extra Photos (
+        {extraPhotos.length}
+        )
       </h3>
 
-      {extraPhotos.length > 3 && (
+      {extraPhotos.length >
+        3 && (
         <div
           style={{
-            padding: '10px',
-            backgroundColor: '#fff3cd',
-            borderRadius: '5px',
-            marginBottom: '15px',
+            padding:
+              '10px',
+
+            backgroundColor:
+              '#fff3cd',
+
+            borderRadius:
+              '5px',
+
+            marginBottom:
+              '15px',
           }}
         >
           ⚠️ Энэ хэрэглэгч{' '}
@@ -1264,30 +2153,48 @@ export default function ProfileEdit() {
         </div>
       )}
 
-      {extraPhotos.length > 0 ? (
+      {extraPhotos.length >
+      0 ? (
         <div
           style={{
-            display: 'flex',
-            gap: '15px',
-            flexWrap: 'wrap',
-            marginBottom: '15px',
+            display:
+              'flex',
+
+            gap:
+              '15px',
+
+            flexWrap:
+              'wrap',
+
+            marginBottom:
+              '15px',
           }}
         >
           {extraPhotos.map(
-            (photo) => {
+            (
+              photo
+            ) => {
               const photoKey =
                 photo.id ||
                 photo.storage_path;
 
               return (
                 <div
-                  key={photoKey}
+                  key={
+                    photoKey
+                  }
                   style={{
-                    textAlign: 'center',
+                    textAlign:
+                      'center',
+
                     border:
                       '1px solid #ddd',
-                    padding: '8px',
-                    borderRadius: '8px',
+
+                    padding:
+                      '8px',
+
+                    borderRadius:
+                      '8px',
                   }}
                 >
                   <img
@@ -1296,11 +2203,20 @@ export default function ProfileEdit() {
                     }
                     alt="Extra"
                     style={{
-                      width: '130px',
-                      height: '130px',
-                      objectFit: 'cover',
-                      borderRadius: '8px',
-                      display: 'block',
+                      width:
+                        '130px',
+
+                      height:
+                        '130px',
+
+                      objectFit:
+                        'cover',
+
+                      borderRadius:
+                        '8px',
+
+                      display:
+                        'block',
                     }}
                   />
 
@@ -1315,13 +2231,35 @@ export default function ProfileEdit() {
                       photoKey
                     }
                     style={{
-                      marginTop: '7px',
-                      padding: '6px 10px',
-                      border: 'none',
-                      borderRadius: '5px',
-                      backgroundColor: '#dc3545',
-                      color: 'white',
-                      cursor: 'pointer',
+                      marginTop:
+                        '7px',
+
+                      padding:
+                        '6px 10px',
+
+                      border:
+                        'none',
+
+                      borderRadius:
+                        '5px',
+
+                      backgroundColor:
+                        '#dc3545',
+
+                      color:
+                        'white',
+
+                      cursor:
+                        deletingPhotoKey ===
+                        photoKey
+                          ? 'not-allowed'
+                          : 'pointer',
+
+                      opacity:
+                        deletingPhotoKey ===
+                        photoKey
+                          ? 0.6
+                          : 1,
                     }}
                   >
                     {deletingPhotoKey ===
@@ -1340,24 +2278,42 @@ export default function ProfileEdit() {
         </p>
       )}
 
-      {extraPhotos.length < 3 ? (
+      {extraPhotos.length <
+      3 ? (
         <label
           style={{
-            display: 'inline-block',
-            padding: '9px 13px',
-            backgroundColor: '#28a745',
-            color: 'white',
-            borderRadius: '5px',
+            display:
+              'inline-block',
+
+            padding:
+              '9px 13px',
+
+            backgroundColor:
+              '#28a745',
+
+            color:
+              'white',
+
+            borderRadius:
+              '5px',
 
             cursor:
               extraPhotoUploading
                 ? 'not-allowed'
                 : 'pointer',
 
-            marginBottom: '25px',
+            opacity:
+              extraPhotoUploading
+                ? 0.6
+                : 1,
+
+            marginBottom:
+              '25px',
           }}
         >
-          ➕ Add Extra Photo
+          {extraPhotoUploading
+            ? 'Uploading...'
+            : '➕ Add Extra Photo'}
 
           <input
             type="file"
@@ -1369,24 +2325,28 @@ export default function ProfileEdit() {
               handleAddExtraPhoto
             }
             style={{
-              display: 'none',
+              display:
+                'none',
             }}
           />
         </label>
       ) : (
         <p
           style={{
-            color: '#777',
-            marginBottom: '25px',
+            color:
+              '#777',
+
+            marginBottom:
+              '25px',
           }}
         >
           Maximum 3 extra photos allowed.
         </p>
       )}
 
-      {/* =================================================
+      {/* ===============================================
           PROFILE INFORMATION
-      ================================================= */}
+      =============================================== */}
 
       <hr />
 
@@ -1394,13 +2354,18 @@ export default function ProfileEdit() {
         👤 Profile Information
       </h3>
 
-      <label style={labelStyle}>
+      <label
+        style={
+          labelStyle
+        }
+      >
         Username
       </label>
 
       <input
         value={
-          profile.username || ''
+          profile.username ||
+          ''
         }
         onChange={(e) =>
           handleChange(
@@ -1408,16 +2373,23 @@ export default function ProfileEdit() {
             e.target.value
           )
         }
-        style={inputStyle}
+        style={
+          inputStyle
+        }
       />
 
-      <label style={labelStyle}>
+      <label
+        style={
+          labelStyle
+        }
+      >
         Nickname
       </label>
 
       <input
         value={
-          profile.nickname || ''
+          profile.nickname ||
+          ''
         }
         onChange={(e) =>
           handleChange(
@@ -1425,16 +2397,23 @@ export default function ProfileEdit() {
             e.target.value
           )
         }
-        style={inputStyle}
+        style={
+          inputStyle
+        }
       />
 
-      <label style={labelStyle}>
+      <label
+        style={
+          labelStyle
+        }
+      >
         Утасны дугаар
       </label>
 
       <input
         value={
-          profile.phone_number || ''
+          profile.phone_number ||
+          ''
         }
         onChange={(e) =>
           handleChange(
@@ -1442,16 +2421,23 @@ export default function ProfileEdit() {
             e.target.value
           )
         }
-        style={inputStyle}
+        style={
+          inputStyle
+        }
       />
 
-      <label style={labelStyle}>
+      <label
+        style={
+          labelStyle
+        }
+      >
         Хүйс
       </label>
 
       <select
         value={
-          profile.gender || ''
+          profile.gender ||
+          ''
         }
         onChange={(e) =>
           handleChange(
@@ -1459,29 +2445,42 @@ export default function ProfileEdit() {
             e.target.value
           )
         }
-        style={inputStyle}
+        style={
+          inputStyle
+        }
       >
-        <option value="">
+        <option
+          value=""
+        >
           Хүйсээ сонгоно уу
         </option>
 
-        <option value="Эрэгтэй">
+        <option
+          value="Эрэгтэй"
+        >
           Эрэгтэй
         </option>
 
-        <option value="Эмэгтэй">
+        <option
+          value="Эмэгтэй"
+        >
           Эмэгтэй
         </option>
       </select>
 
-      <label style={labelStyle}>
+      <label
+        style={
+          labelStyle
+        }
+      >
         Төрсөн өдөр
       </label>
 
       <input
         type="date"
         value={
-          profile.birthdate || ''
+          profile.birthdate ||
+          ''
         }
         onChange={(e) =>
           handleChange(
@@ -1489,16 +2488,23 @@ export default function ProfileEdit() {
             e.target.value
           )
         }
-        style={inputStyle}
+        style={
+          inputStyle
+        }
       />
 
-      <label style={labelStyle}>
+      <label
+        style={
+          labelStyle
+        }
+      >
         Байршил
       </label>
 
       <input
         value={
-          profile.location || ''
+          profile.location ||
+          ''
         }
         onChange={(e) =>
           handleChange(
@@ -1506,12 +2512,14 @@ export default function ProfileEdit() {
             e.target.value
           )
         }
-        style={inputStyle}
+        style={
+          inputStyle
+        }
       />
 
-      {/* =================================================
+      {/* ===============================================
           POINTS / STATS
-      ================================================= */}
+      =============================================== */}
 
       <hr />
 
@@ -1519,7 +2527,11 @@ export default function ProfileEdit() {
         🏆 Points / Stats
       </h3>
 
-      <label style={labelStyle}>
+      <label
+        style={
+          labelStyle
+        }
+      >
         Christma Points
       </label>
 
@@ -1535,10 +2547,16 @@ export default function ProfileEdit() {
             e.target.value
           )
         }
-        style={inputStyle}
+        style={
+          inputStyle
+        }
       />
 
-      <label style={labelStyle}>
+      <label
+        style={
+          labelStyle
+        }
+      >
         💕 Date Points
       </label>
 
@@ -1554,10 +2572,16 @@ export default function ProfileEdit() {
             e.target.value
           )
         }
-        style={inputStyle}
+        style={
+          inputStyle
+        }
       />
 
-      <label style={labelStyle}>
+      <label
+        style={
+          labelStyle
+        }
+      >
         Likes
       </label>
 
@@ -1573,10 +2597,16 @@ export default function ProfileEdit() {
             e.target.value
           )
         }
-        style={inputStyle}
+        style={
+          inputStyle
+        }
       />
 
-      <label style={labelStyle}>
+      <label
+        style={
+          labelStyle
+        }
+      >
         Date Count
       </label>
 
@@ -1592,10 +2622,16 @@ export default function ProfileEdit() {
             e.target.value
           )
         }
-        style={inputStyle}
+        style={
+          inputStyle
+        }
       />
 
-      <label style={labelStyle}>
+      <label
+        style={
+          labelStyle
+        }
+      >
         ⚠️ Анхааруулга
       </label>
 
@@ -1612,26 +2648,37 @@ export default function ProfileEdit() {
             e.target.value
           )
         }
-        style={inputStyle}
+        style={
+          inputStyle
+        }
       />
 
       <p
         style={{
-          marginTop: '-10px',
-          marginBottom: '20px',
-          color: '#777',
-          fontSize: '13px',
+          marginTop:
+            '-10px',
+
+          marginBottom:
+            '20px',
+
+          color:
+            '#777',
+
+          fontSize:
+            '13px',
         }}
       >
         Одоогийн анхааруулга:{' '}
+
         <strong>
-          {profile.anhaaruulga || 0}
+          {profile.anhaaruulga ||
+            0}
         </strong>
       </p>
 
-      {/* =================================================
+      {/* ===============================================
           ACCOUNT STATUS
-      ================================================= */}
+      =============================================== */}
 
       <hr />
 
@@ -1639,16 +2686,19 @@ export default function ProfileEdit() {
         ⚙️ Account Status
       </h3>
 
+      {/* ADMIN */}
+
       <div
-        style={{
-          marginBottom: '10px',
-        }}
+        style={
+          statusRowStyle
+        }
       >
         <label>
           <input
             type="checkbox"
             checked={
-              profile.is_admin === true
+              profile.is_admin ===
+              true
             }
             onChange={(e) =>
               handleChange(
@@ -1661,17 +2711,19 @@ export default function ProfileEdit() {
         </label>
       </div>
 
-      {/* CREATOR CHECKBOX */}
+      {/* CREATOR */}
+
       <div
-        style={{
-          marginBottom: '10px',
-        }}
+        style={
+          statusRowStyle
+        }
       >
         <label>
           <input
             type="checkbox"
             checked={
-              profile.is_creator === true
+              profile.is_creator ===
+              true
             }
             onChange={(e) =>
               handleChange(
@@ -1684,76 +2736,74 @@ export default function ProfileEdit() {
         </label>
       </div>
 
+      {/* BAN — USES bans TABLE */}
+
       <div
-        style={{
-          marginBottom: '10px',
-        }}
+        style={
+          statusRowStyle
+        }
       >
         <label>
           <input
             type="checkbox"
             checked={
-              profile.is_banned === true
+              isBanned
+            }
+            disabled={
+              changingBan ||
+              profile.is_creator === true ||
+              profile.is_admin === true
             }
             onChange={(e) =>
-              handleChange(
-                'is_banned',
+              handleBanToggle(
                 e.target.checked
               )
             }
           />{' '}
           🚫 Banned
         </label>
+
+        {changingBan && (
+          <span
+            style={{
+              marginLeft:
+                '10px',
+
+              color:
+                '#777',
+
+              fontSize:
+                '13px',
+            }}
+          >
+            Updating...
+          </span>
+        )}
+
+        {(
+          profile.is_creator === true ||
+          profile.is_admin === true
+        ) && (
+          <p
+            style={{
+              margin: '5px 0 0',
+              color: '#777',
+              fontSize: '12px',
+            }}
+          >
+            {profile.is_creator
+              ? 'Creator account-ийг ban хийх боломжгүй.'
+              : 'Admin account-ийг ban хийх боломжгүй.'}
+          </p>
+        )}
       </div>
+
+      {/* AGREEMENT */}
 
       <div
         style={{
-          marginBottom: '10px',
-        }}
-      >
-        <label>
-          <input
-            type="checkbox"
-            checked={
-              profile.is_in_relationship ===
-              true
-            }
-            onChange={(e) =>
-              handleChange(
-                'is_in_relationship',
-                e.target.checked
-              )
-            }
-          />{' '}
-          ❤️ In Relationship
-        </label>
-      </div>
-
-      <div
-        style={{
-          marginBottom: '10px',
-        }}
-      >
-        <label>
-          <input
-            type="checkbox"
-            checked={
-              profile.is_on_break === true
-            }
-            onChange={(e) =>
-              handleChange(
-                'is_on_break',
-                e.target.checked
-              )
-            }
-          />{' '}
-          ⏸️ On Break
-        </label>
-      </div>
-
-      <div
-        style={{
-          marginBottom: '25px',
+          marginBottom:
+            '25px',
         }}
       >
         <label>
@@ -1774,9 +2824,9 @@ export default function ProfileEdit() {
         </label>
       </div>
 
-      {/* =================================================
+      {/* ===============================================
           SAVE
-      ================================================= */}
+      =============================================== */}
 
       <button
         onClick={
@@ -1786,19 +2836,39 @@ export default function ProfileEdit() {
           saving
         }
         style={{
-          width: '100%',
-          padding: '13px',
-          borderRadius: '6px',
-          border: 'none',
-          backgroundColor: '#007bff',
-          color: 'white',
-          fontSize: '16px',
-          fontWeight: 'bold',
+          width:
+            '100%',
+
+          padding:
+            '13px',
+
+          borderRadius:
+            '6px',
+
+          border:
+            'none',
+
+          backgroundColor:
+            '#007bff',
+
+          color:
+            'white',
+
+          fontSize:
+            '16px',
+
+          fontWeight:
+            'bold',
 
           cursor:
             saving
               ? 'not-allowed'
               : 'pointer',
+
+          opacity:
+            saving
+              ? 0.6
+              : 1,
         }}
       >
         {saving

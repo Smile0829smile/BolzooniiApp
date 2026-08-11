@@ -23,6 +23,8 @@ import CreatorTasksPage from './pages/CreatorTasksPage';
 import ProfileEdit from './pages/ProfileEdit';
 import WarningPage from './pages/WarningPage';
 import DeleteUser from './pages/DeleteUser';
+import BansPage from './pages/BansPage';
+import DateHistory from './pages/DateHistory';
 
 function ProtectedRoute({ user, children }) {
   const location = useLocation();
@@ -187,6 +189,22 @@ function AppWrapper() {
         element={
           <ProtectedRoute user={user}>
             <DeleteUser />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/bans"
+        element={
+          <ProtectedRoute user={user}>
+            <BansPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/date-history/:userId"
+        element={
+          <ProtectedRoute user={user}>
+            <DateHistory />
           </ProtectedRoute>
         }
       />
