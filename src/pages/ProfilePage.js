@@ -507,7 +507,7 @@ export default function ProfilePage() {
           </button>
         </div>
       )}
-      <div style={{ position: 'absolute', bottom: '12px', right: '16px', fontSize: '12px', color: '#999', opacity: 0.8,}}>Updated: August 11, 2026:Part3</div>
+      <div style={{ position: 'absolute', bottom: '12px', right: '16px', fontSize: '12px', color: '#999', opacity: 0.8,}}>Updated: August 13, 2026</div>
     </div>
   );
 }

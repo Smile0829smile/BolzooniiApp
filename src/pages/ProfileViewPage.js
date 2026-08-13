@@ -91,6 +91,138 @@ export default function ProfileViewPage() {
     setDateRequested,
   ] = useState(false);
 
+  const [
+    recentVisits,
+    setRecentVisits,
+  ] = useState([]);
+
+  async function recordProfileVisit(
+    viewerId,
+    viewedId
+  ) {
+    // Don't record yourself visiting yourself
+    if (
+      !viewerId ||
+      !viewedId ||
+      viewerId === viewedId
+    ) {
+      return;
+    }
+  
+    try {
+      const {
+        error,
+      } = await supabase
+        .from('profile_visits')
+        .upsert(
+          {
+            viewer_id: viewerId,
+            viewed_id: viewedId,
+            visited_at:
+              new Date().toISOString(),
+          },
+          {
+            onConflict:
+              'viewer_id,viewed_id',
+          }
+        );
+  
+      if (error) {
+        throw error;
+      }
+    } catch (err) {
+      console.error(
+        'Profile visit save error:',
+        err
+      );
+    }
+  }
+  
+  async function fetchRecentVisits(
+    viewedId
+  ) {
+    if (!viewedId) {
+      setRecentVisits([]);
+      return;
+    }
+  
+    try {
+      const {
+        data,
+        error,
+      } = await supabase
+        .from('profile_visits')
+        .select(`
+          id,
+          viewer_id,
+          visited_at,
+          viewer:profiles!profile_visits_viewer_id_fkey(
+            id,
+            username,
+            nickname,
+            profile_pic
+          )
+        `)
+        .eq(
+          'viewed_id',
+          viewedId
+        )
+  
+        // Extra protection:
+        // Never show User2 visiting User2
+        .neq(
+          'viewer_id',
+          viewedId
+        )
+  
+        // Your requested order:
+        // oldest -> newest
+        .order(
+          'visited_at',
+          {
+            ascending: true,
+          }
+        )
+        .limit(3);
+  
+      if (error) {
+        throw error;
+      }
+  
+      setRecentVisits(
+        data || []
+      );
+    } catch (err) {
+      console.error(
+        'Recent visits fetch error:',
+        err
+      );
+  
+      setRecentVisits([]);
+    }
+  }
+  
+  function formatVisitTime(
+    value
+  ) {
+    if (!value) {
+      return '';
+    }
+  
+    const date =
+      new Date(value);
+  
+    if (
+      Number.isNaN(
+        date.getTime()
+      )
+    ) {
+      return '';
+    }
+  
+    return date.toLocaleString();
+  }
+
   useEffect(() => {
     async function fetchProfile() {
       if (!id) {
@@ -189,6 +321,30 @@ export default function ProfileViewPage() {
 
         setProfile(
           profileData
+        );
+
+        // ================================================
+        // RECENT PROFILE VISIT
+        // ================================================
+
+        // Only record the visit if:
+        // User1 is looking at User2.
+        //
+        // If User2 looks at User2,
+        // NOTHING gets added.
+        if (
+          user &&
+          user.id !== profileData.id
+        ) {
+          await recordProfileVisit(
+            user.id,
+            profileData.id
+          );
+        }
+
+        // Load the 3 unique recent visitors
+        await fetchRecentVisits(
+          profileData.id
         );
 
         if (
@@ -1740,6 +1896,196 @@ export default function ProfileViewPage() {
       >
         📜 Бонус онооны түүх
       </button>
+
+      {/* ================================================
+          RECENT VISITS
+      ================================================ */}
+
+      <h3
+        style={{
+          marginTop: '30px',
+        }}
+      >
+        👀 Сүүлд зочилсон
+      </h3>
+
+      {recentVisits.length > 0 ? (
+        <div
+          style={{
+            display: 'flex',
+            gap: '12px',
+            flexWrap: 'wrap',
+            marginBottom: '20px',
+          }}
+        >
+          {recentVisits.map(
+            (visit) => {
+              const visitor =
+                visit.viewer;
+
+              // Extra frontend protection.
+              // Never display the profile owner
+              // as their own visitor.
+              if (
+                !visitor ||
+                visitor.id === profile.id
+              ) {
+                return null;
+              }
+
+              return (
+                <div
+                  key={visit.id}
+                  style={{
+                    width: '150px',
+                    padding: '10px',
+                    border:
+                      '1px solid #ddd',
+                    borderRadius:
+                      '10px',
+                    textAlign:
+                      'center',
+                  }}
+                >
+                  {/* PROFILE PICTURE */}
+
+                  {visitor.profile_pic ? (
+                    <img
+                      src={
+                        visitor.profile_pic
+                      }
+                      alt={
+                        visitor.username ||
+                        'Visitor'
+                      }
+                      onClick={() =>
+                        navigate(
+                          `/profile-view/${visitor.id}`
+                        )
+                      }
+                      style={{
+                        width: '60px',
+                        height: '60px',
+                        borderRadius:
+                          '50%',
+                        objectFit:
+                          'cover',
+                        cursor:
+                          'pointer',
+                      }}
+                    />
+                  ) : (
+                    <div
+                      onClick={() =>
+                        navigate(
+                          `/profile-view/${visitor.id}`
+                        )
+                      }
+                      style={{
+                        width: '60px',
+                        height: '60px',
+                        margin:
+                          '0 auto',
+                        borderRadius:
+                          '50%',
+                        backgroundColor:
+                          '#eee',
+                        display:
+                          'flex',
+                        alignItems:
+                          'center',
+                        justifyContent:
+                          'center',
+                        fontSize:
+                          '28px',
+                        cursor:
+                          'pointer',
+                      }}
+                    >
+                      👤
+                    </div>
+                  )}
+
+                  {/* NAME */}
+
+                  <p
+                    style={{
+                      margin:
+                        '8px 0 4px',
+                      fontWeight:
+                        'bold',
+                    }}
+                  >
+                    {visitor.nickname ||
+                      visitor.username ||
+                      'Unknown User'}
+                  </p>
+
+                  {/* USERNAME */}
+
+                  {visitor.username && (
+                    <small
+                      style={{
+                        display:
+                          'block',
+                        color:
+                          '#666',
+                        marginBottom:
+                          '5px',
+                      }}
+                    >
+                      @{visitor.username}
+                    </small>
+                  )}
+
+                  {/* VISIT TIME */}
+
+                  <small
+                    style={{
+                      display:
+                        'block',
+                      color:
+                        '#777',
+                      marginBottom:
+                        '8px',
+                    }}
+                  >
+                    {formatVisitTime(
+                      visit.visited_at
+                    )}
+                  </small>
+
+                  {/* PROFILE BUTTON */}
+
+                  <button
+                    onClick={() =>
+                      navigate(
+                        `/profile-view/${visitor.id}`
+                      )
+                    }
+                    style={{
+                      padding:
+                        '6px 9px',
+                      border:
+                        'none',
+                      borderRadius:
+                        '6px',
+                      cursor:
+                        'pointer',
+                    }}
+                  >
+                    👤 Профайл үзэх
+                  </button>
+                </div>
+              );
+            }
+          )}
+        </div>
+      ) : (
+        <p>
+          Одоогоор зочилсон хүн байхгүй байна.
+        </p>
+      )}
 
       <h3
         style={{

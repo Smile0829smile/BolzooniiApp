@@ -153,55 +153,62 @@ export default function LeaderboardPage() {
 
   async function assignRandomTaskToCouple(coupleId) {
     try {
+      console.log(
+        '💑 Starting couple task assignment...',
+        coupleId
+      );
+  
+      // =====================================================
+      // GET DATING ROW
+      // =====================================================
+  
       const {
         data: couple,
         error: coupleError,
       } = await supabase
         .from('dating')
-        .select('user1_id, user2_id')
+        .select(
+          'id, user1_id, user2_id, ended_at'
+        )
         .eq('id', coupleId)
         .single();
-
+  
       if (coupleError) {
+        console.error(
+          '❌ Couple fetch error:',
+          coupleError
+        );
+  
         throw coupleError;
       }
-
+  
       if (!couple) {
         throw new Error(
           'Couple олдсонгүй.'
         );
       }
-
+  
+      if (couple.ended_at) {
+        throw new Error(
+          'Энэ болзоо аль хэдийн дууссан байна.'
+        );
+      }
+  
       const {
         user1_id,
         user2_id,
       } = couple;
-
-      const {
-        data: profiles,
-        error: profileError,
-      } = await supabase
-        .from('profiles')
-        .select('id, username, nickname')
-        .in('id', [
-          user1_id,
-          user2_id,
-        ]);
-
-      if (profileError) {
-        throw profileError;
-      }
-
-      const user1 =
-        profiles?.find(
-          (p) => p.id === user1_id
-        );
-
-      const user2 =
-        profiles?.find(
-          (p) => p.id === user2_id
-        );
-
+  
+      console.log(
+        '💑 Couple:',
+        user1_id,
+        user2_id
+      );
+  
+      // =====================================================
+      // TASK LIST
+      // =====================================================
+  
       const tasks = [
         "Тасралтгүй 2 цаг видео дуудлага хийх. Ярих хугацаандаа зураг зурах. Тэгээд хамгийн гунигтай юм уу хамгийн хөгжилтэй уншсан уран зохиолуудаа ярих.",
         "Өөрсдөө болзоогоо төлөвлөөд YouTube дээр влог болгож оруулах. Тэгээд групп дээр линкээ өгөх.",
@@ -219,17 +226,29 @@ export default function LeaderboardPage() {
         "3 минут юу ч ярихгүйгээр бие бие рүүгээ харж, харцаа салгалгүй видео дуудлага хийх. Дараа нь ямар санагдсанаа ярилцах.",
         "Бие биедээ зориулж 5 зураг сонгоод, яагаад тэр зураг тухайн хүнийг санагдуулж байгааг тайлбарлах. Тэгээд хамгийн гоё санагдсан нэг зургаа сонгоод 24 цаг сторидоо хийх.",
       ];
-
+  
       const randomTask =
         tasks[
           Math.floor(
             Math.random() *
-            tasks.length
+              tasks.length
           )
         ];
-
+  
+      console.log(
+        '🎲 Selected task:',
+        randomTask
+      );
+  
+      // =====================================================
+      // DELETE OLD TASKS
+      //
+      // IMPORTANT:
+      // Do NOT stop the new task if old cleanup fails.
+      // =====================================================
+  
       const {
-        error: oldTaskDeleteError,
+        error: deleteError,
       } = await supabase
         .from('couple_task')
         .delete()
@@ -240,77 +259,169 @@ export default function LeaderboardPage() {
             user2_id,
           ]
         );
-
-      if (oldTaskDeleteError) {
-        throw oldTaskDeleteError;
+  
+      if (deleteError) {
+        console.error(
+          '⚠️ Old couple task cleanup failed:',
+          deleteError
+        );
+      } else {
+        console.log(
+          '✅ Old couple tasks removed'
+        );
       }
-
+  
+      // =====================================================
+      // INSERT TASK FOR BOTH USERS
+      // =====================================================
+  
       const {
-        error: taskError,
+        data: insertedTasks,
+        error: insertError,
       } = await supabase
         .from('couple_task')
         .insert([
           {
             assignee_id:
               user1_id,
-
+  
             task_text:
               randomTask,
           },
-
           {
             assignee_id:
               user2_id,
-
+  
             task_text:
               randomTask,
           },
-        ]);
-
-      if (taskError) {
-        throw taskError;
+        ])
+        .select(
+          'id, assignee_id, task_text, assigned_at'
+        );
+  
+      if (insertError) {
+        console.error(
+          '❌ COUPLE TASK INSERT FAILED:',
+          insertError
+        );
+  
+        alert(
+          `Хосын даалгавар үүсгэхэд алдаа гарлаа:\n${insertError.message}`
+        );
+  
+        throw insertError;
       }
-
+  
       console.log(
-        '✅ Couple task created:',
-        randomTask
+        '✅ Couple tasks inserted:',
+        insertedTasks
       );
-
+  
+      // =====================================================
+      // VERIFY BOTH ROWS EXIST
+      // =====================================================
+  
+      if (
+        !insertedTasks ||
+        insertedTasks.length !==
+          2
+      ) {
+        console.warn(
+          '⚠️ Expected 2 couple_task rows but received:',
+          insertedTasks
+        );
+      }
+  
+      // =====================================================
+      // GET USER NAMES
+      // =====================================================
+  
+      const {
+        data: profiles,
+        error: profilesError,
+      } = await supabase
+        .from('profiles')
+        .select(
+          'id, username, nickname'
+        )
+        .in(
+          'id',
+          [
+            user1_id,
+            user2_id,
+          ]
+        );
+  
+      if (profilesError) {
+        console.error(
+          'Profile lookup error:',
+          profilesError
+        );
+      }
+  
+      const user1 =
+        profiles?.find(
+          (p) =>
+            p.id ===
+            user1_id
+        );
+  
+      const user2 =
+        profiles?.find(
+          (p) =>
+            p.id ===
+            user2_id
+        );
+  
       const name1 =
         user1?.nickname ||
         user1?.username ||
         'User 1';
-
+  
       const name2 =
         user2?.nickname ||
         user2?.username ||
         'User 2';
-
+  
+      // =====================================================
+      // NOTIFICATION
+      // =====================================================
+  
       const {
-        error: notificationError,
+        error:
+          notificationError,
       } = await supabase
         .from('notifications')
         .insert({
           user_id: null,
-
+  
           message:
             `💑 ${name1}, ${name2} хоёрт шинэ хосын даалгавар ирлээ! Даалгавар: "${randomTask}"`,
         });
-
-      if (notificationError) {
+  
+      if (
+        notificationError
+      ) {
         console.error(
           'Couple task notification error:',
           notificationError
         );
       }
-
-      return randomTask;
+  
+      return {
+        task:
+          randomTask,
+  
+        rows:
+          insertedTasks,
+      };
     } catch (err) {
       console.error(
-        'assignRandomTaskToCouple error:',
+        '❌ assignRandomTaskToCouple FAILED:',
         err
       );
-
+  
       throw err;
     }
   }
@@ -2162,12 +2273,28 @@ export default function LeaderboardPage() {
       // ASSIGN COUPLE TASK
       // =====================================================
   
-      await assignRandomTaskToCouple(
-        couple.id
-      );
-  
+      const coupleTaskResult =
+        await assignRandomTaskToCouple(
+          couple.id
+        );
+
+      if (
+        coupleTaskResult?.task
+      ) {
+        setDatingTask(
+          coupleTaskResult.task
+        );
+      }
+
+      // IMPORTANT:
+      // Load active date before rendering couple task UI.
+      await fetchActiveDate();
+
       await fetchDatingTask();
-  
+
+      fetchIncomingDateRequests();
+      fetchLeaderboard();
+
       alert(
         'Та болзооны саналыг хүлээж авлаа!'
       );
@@ -2270,116 +2397,197 @@ export default function LeaderboardPage() {
   // =====================================================
 
   async function endDate() {
-    if (!activeDate)
+    if (!activeDate) {
       return;
-
+    }
+  
     try {
+      // =====================================================
+      // FIND REAL ACTIVE DATING ROW
+      // =====================================================
+  
       const {
-        data:
-          datingRow,
-        error:
-          datingError,
+        data: datingRow,
+        error: datingError,
       } = await supabase
         .from('dating')
         .select(
-          'id, started_at, user1_id, user2_id'
+          'id, started_at, ended_at, user1_id, user2_id'
+        )
+        .is('ended_at', null)
+        .or(
+          `user1_id.eq.${currentUser.id},user2_id.eq.${currentUser.id}`
+        )
+        .maybeSingle();
+  
+      if (datingError) {
+        console.error(
+          'Error fetching dating record:',
+          datingError
+        );
+  
+        alert(
+          `Идэвхтэй болзоо шалгахад алдаа гарлаа:\n${datingError.message}`
+        );
+  
+        return;
+      }
+  
+      if (!datingRow) {
+        alert(
+          'Идэвхтэй болзоо олдсонгүй.'
+        );
+  
+        await fetchActiveDate();
+        return;
+      }
+  
+      // =====================================================
+      // 6 HOUR MINIMUM
+      // =====================================================
+  
+      const startedAt =
+        new Date(
+          datingRow.started_at
+        ).getTime();
+  
+      const now =
+        Date.now();
+  
+      const sixHours =
+        6 *
+        60 *
+        60 *
+        1000;
+  
+      const difference =
+        now - startedAt;
+  
+      if (
+        difference <
+        sixHours
+      ) {
+        const remaining =
+          sixHours -
+          difference;
+  
+        const remainingHours =
+          Math.floor(
+            remaining /
+              (
+                1000 *
+                60 *
+                60
+              )
+          );
+  
+        const remainingMinutes =
+          Math.floor(
+            (
+              remaining %
+              (
+                1000 *
+                60 *
+                60
+              )
+            ) /
+              (
+                1000 *
+                60
+              )
+          );
+  
+        alert(
+          `Та багадаа 6 цаг болзох ёстой. ${remainingHours} цаг ${remainingMinutes} минутын дараа дахин үзнэ үү.`
+        );
+  
+        return;
+      }
+  
+      // =====================================================
+      // END DATING
+      //
+      // IMPORTANT:
+      // .select().single() proves the row REALLY updated.
+      // =====================================================
+  
+      const endedAt =
+        new Date().toISOString();
+  
+      const {
+        data: endedDatingRow,
+        error: endDatingError,
+      } = await supabase
+        .from('dating')
+        .update({
+          ended_at:
+            endedAt,
+        })
+        .eq(
+          'id',
+          datingRow.id
         )
         .is(
           'ended_at',
           null
         )
-        .or(
-          `user1_id.eq.${currentUser.id},user2_id.eq.${currentUser.id}`
+        .select(
+          'id, user1_id, user2_id, started_at, ended_at'
         )
         .single();
-
+  
+      if (endDatingError) {
+        console.error(
+          '❌ END DATING UPDATE FAILED:',
+          endDatingError
+        );
+  
+        alert(
+          `Болзоог database дээр дуусгаж чадсангүй:\n${endDatingError.message}`
+        );
+  
+        return;
+      }
+  
+      // =====================================================
+      // VERIFY ended_at
+      // =====================================================
+  
       if (
-        datingError ||
-        !datingRow
+        !endedDatingRow ||
+        !endedDatingRow.ended_at
       ) {
         console.error(
-          'Error fetching dating record:',
-          datingError
+          '❌ ended_at was NOT saved:',
+          endedDatingRow
         );
-
+  
         alert(
-          'Идэвхтэй болзоо олдсонгүй.'
+          'Болзооны ended_at database-д хадгалагдсангүй. Болзоо дуусаагүй хэвээр байна.'
         );
-
+  
         return;
       }
-
-      const startedAtUTC =
-        Date.parse(
-          datingRow.started_at
-        );
-
-      const nowUTC =
-        Date.now();
-
-      const diffMs =
-        nowUTC -
-        startedAtUTC;
-
-      if (
-        diffMs <
-        6 *
-          60 *
-          60 *
-          1000
-      ) {
-        const remainingMs =
-          6 *
-            60 *
-            60 *
-            1000 -
-          diffMs;
-
-        const remainingHours =
-          Math.floor(
-            remainingMs /
-              (1000 *
-                60 *
-                60)
-          );
-
-        const remainingMinutes =
-          Math.floor(
-            (remainingMs %
-              (1000 *
-                60 *
-                60)) /
-              (1000 * 60)
-          );
-
-        alert(
-          `Та багадаа 6 цаг болзох ёстой. ${remainingHours} цаг ${remainingMinutes} минутын дараа дахин үзнэ үү.`
-        );
-
-        return;
-      }
-
+  
+      console.log(
+        '✅ Dating ended successfully:',
+        endedDatingRow
+      );
+  
+      // =====================================================
+      // UPDATE ACCEPTED DATE REQUEST
+      //
+      // Check BOTH possible directions.
+      // =====================================================
+  
+      const requestPairFilter =
+        `and(requester_id.eq.${datingRow.user1_id},requested_id.eq.${datingRow.user2_id}),` +
+        `and(requester_id.eq.${datingRow.user2_id},requested_id.eq.${datingRow.user1_id})`;
+  
       const {
         error:
-          endDatingError,
+          requestEndError,
       } = await supabase
-        .from('dating')
-        .update({
-          ended_at:
-            new Date().toISOString(),
-        })
-        .eq(
-          'id',
-          datingRow.id
-        );
-
-      if (
-        endDatingError
-      ) {
-        throw endDatingError;
-      }
-
-      await supabase
         .from(
           'date_requests'
         )
@@ -2392,14 +2600,29 @@ export default function LeaderboardPage() {
           'accepted'
         )
         .or(
-          `requester_id.eq.${datingRow.user1_id},requested_id.eq.${datingRow.user2_id}`
+          requestPairFilter
         );
-
+  
+      if (
+        requestEndError
+      ) {
+        console.error(
+          'Date request end error:',
+          requestEndError
+        );
+      }
+  
+      // =====================================================
+      // DELETE COUPLE TASKS
+      // =====================================================
+  
       const {
         error:
           coupleTaskDeleteError,
       } = await supabase
-        .from('couple_task')
+        .from(
+          'couple_task'
+        )
         .delete()
         .in(
           'assignee_id',
@@ -2408,7 +2631,7 @@ export default function LeaderboardPage() {
             datingRow.user2_id,
           ]
         );
-
+  
       if (
         coupleTaskDeleteError
       ) {
@@ -2417,67 +2640,116 @@ export default function LeaderboardPage() {
           coupleTaskDeleteError
         );
       }
-
+  
+      // =====================================================
+      // GET USERNAMES
+      // =====================================================
+  
       const {
         data:
-          requesterProfile,
+          profiles,
+        error:
+          profilesError,
       } = await supabase
         .from('profiles')
         .select(
-          'username'
+          'id, username'
         )
-        .eq(
+        .in(
           'id',
-          datingRow.user1_id
-        )
-        .single();
-
-      const {
-        data:
-          requestedProfile,
-      } = await supabase
-        .from('profiles')
-        .select(
-          'username'
-        )
-        .eq(
-          'id',
-          datingRow.user2_id
-        )
-        .single();
-
-      await supabase
-        .from(
-          'notifications'
-        )
-        .insert({
-          user_id: null,
-
-          message:
-            `💔 ${requesterProfile.username} ба ${requestedProfile.username} болзоогоо дуусгалаа.`,
-        });
-
-      alert(
-        'Та болзоогоо дуусгалаа.'
-      );
-
+          [
+            datingRow.user1_id,
+            datingRow.user2_id,
+          ]
+        );
+  
+      if (
+        profilesError
+      ) {
+        console.error(
+          'Profile fetch error:',
+          profilesError
+        );
+      }
+  
+      const user1 =
+        profiles?.find(
+          (user) =>
+            user.id ===
+            datingRow.user1_id
+        );
+  
+      const user2 =
+        profiles?.find(
+          (user) =>
+            user.id ===
+            datingRow.user2_id
+        );
+  
+      // =====================================================
+      // NOTIFICATION
+      // =====================================================
+  
+      if (
+        user1 &&
+        user2
+      ) {
+        const {
+          error:
+            notificationError,
+        } = await supabase
+          .from(
+            'notifications'
+          )
+          .insert({
+            user_id:
+              null,
+  
+            message:
+              `💔 ${user1.username} ба ${user2.username} болзоогоо дуусгалаа.`,
+          });
+  
+        if (
+          notificationError
+        ) {
+          console.error(
+            'End date notification error:',
+            notificationError
+          );
+        }
+      }
+  
+      // =====================================================
+      // ONLY NOW CLEAR FRONTEND
+      //
+      // We know database ended_at actually exists.
+      // =====================================================
+  
       setActiveDate(
         null
       );
-
-      setDatingTask(null);
-
-      fetchActiveDate();
+  
+      setDatingTask(
+        null
+      );
+  
+      alert(
+        'Та болзоогоо амжилттай дуусгалаа.'
+      );
+  
+      await fetchActiveDate();
+  
       fetchIncomingDateRequests();
+  
       fetchLeaderboard();
     } catch (err) {
       console.error(
-        'Error ending date:',
+        '❌ Error ending date:',
         err
       );
-
+  
       alert(
-        'Болзоог дуусгах үед алдаа гарлаа.'
+        `Болзоог дуусгах үед алдаа гарлаа:\n${err.message}`
       );
     }
   }
